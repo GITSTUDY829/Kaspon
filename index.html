@@ -1,17 +1,556 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="he">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>כספון</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- React + ReactDOM — נדרשים ל-support.js כדי לרנדר את העיצוב -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="./support.js"></script>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="module" src="./main.jsx"></script>
+<div id="kaspon-splash" dir="rtl">
+  <style>
+    #kaspon-splash{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:#FFF4EC;font-family:'Rubik',-apple-system,BlinkMacSystemFont,sans-serif;transition:opacity .45s ease,visibility .45s ease;}
+    #kaspon-splash .ks-logo{width:78px;height:78px;border-radius:24px;background:linear-gradient(135deg,#FF7E4F,#FF45A0);display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:800;color:#fff;box-shadow:0 18px 42px rgba(255,77,141,0.34);animation:ksPulse 1.4s ease-in-out infinite;}
+    #kaspon-splash .ks-name{font-size:24px;font-weight:800;color:#3A2A2E;letter-spacing:-0.5px;}
+    #kaspon-splash .ks-ring{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,92,126,0.22);border-top-color:#FF5C7E;animation:ksSpin .8s linear infinite;}
+    #kaspon-splash .ks-retry{display:none;flex-direction:column;align-items:center;gap:14px;}
+    #kaspon-splash .ks-retry p{font-size:14px;color:#A08A8E;}
+    #kaspon-splash .ks-retry button{font-family:inherit;font-size:14px;font-weight:700;color:#fff;border:none;border-radius:14px;padding:12px 24px;cursor:pointer;background:linear-gradient(135deg,#FF7E4F,#FF45A0);box-shadow:0 12px 26px rgba(255,77,141,0.30);}
+    @keyframes ksSpin{to{transform:rotate(360deg);}}
+    @keyframes ksPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
+    body:has(#dc-root) #kaspon-splash{opacity:0;visibility:hidden;pointer-events:none;}
+  </style>
+  <div class="ks-logo">₪</div>
+  <div class="ks-name">כספון</div>
+  <div class="ks-ring" id="ks-ring"></div>
+  <div class="ks-retry" id="ks-retry">
+    <p>הטעינה נמשכת זמן רב מהצפוי</p>
+    <button onclick="location.reload()">טען מחדש ↻</button>
+  </div>
+</div>
+<script>
+(function(){
+  var splash=document.getElementById('kaspon-splash');
+  function gone(){return document.getElementById('dc-root');}
+  var obs=new MutationObserver(function(){if(gone()){if(splash)splash.style.display='none';obs.disconnect();}});
+  try{obs.observe(document.body,{childList:true,subtree:true});}catch(e){}
+  setTimeout(function(){
+    if(!gone()){var r=document.getElementById('ks-ring');var rt=document.getElementById('ks-retry');if(r)r.style.display='none';if(rt)rt.style.display='flex';}
+  },9000);
+})();
+</script>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:#FFF4EC;font-family:'Rubik',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-thumb{background:rgba(255,107,91,0.28);border-radius:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+@keyframes floatBlob{0%,100%{transform:translate(0,0);}50%{transform:translate(-22px,16px);}}
+</style>
+</helmet>
+
+<div dir="rtl" style="min-height:100vh;background:#FFF4EC;color:#3A2A2E;font-family:'Rubik',sans-serif;">
+
+<!-- ════════ LOGIN ════════ -->
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;background:radial-gradient(ellipse 80% 50% at 50% -2%,rgba(255,92,126,0.16),transparent 70%);">
+<div style="width:76px;height:76px;border-radius:23px;background:linear-gradient(135deg,#FF7E4F,#FF45A0);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:800;color:#fff;box-shadow:0 18px 42px rgba(255,77,141,0.34);">₪</div>
+<div style="font-size:34px;font-weight:800;margin-top:22px;letter-spacing:-0.5px;text-align:center;">ברוך הבא 👋</div>
+<p style="font-size:15px;color:#A08A8E;margin-top:8px;margin-bottom:30px;text-align:center;">כניסה מאובטחת לדשבורד האישי שלך</p>
+<div style="width:100%;max-width:404px;background:#fff;border-radius:28px;padding:30px;box-shadow:0 24px 60px rgba(255,107,91,0.13);">
+<div style="font-size:19px;font-weight:700;margin-bottom:22px;">כניסה</div>
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;font-weight:600;color:#A08A8E;margin-bottom:8px;">כתובת אימייל</label><input type="email" value="{{ lEmail }}" onChange="{{ setLEmail }}" placeholder="name@example.com" style="width:100%;padding:14px 16px;background:#FFF7F3;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;direction:ltr;text-align:left;transition:all .2s;" style-focus="border-color:#FF5C7E;background:#fff;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;font-weight:600;color:#A08A8E;margin-bottom:8px;">סיסמה</label><input type="password" value="{{ lPwd }}" onChange="{{ setLPwd }}" placeholder="••••••••" style="width:100%;padding:14px 16px;background:#FFF7F3;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;direction:ltr;text-align:left;transition:all .2s;" style-focus="border-color:#FF5C7E;background:#fff;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<button onClick="{{ goApp }}" style="width:100%;padding:15px;background:linear-gradient(135deg,#FF7E4F,#FF45A0);border:none;border-radius:16px;color:#fff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px;box-shadow:0 12px 26px rgba(255,77,141,0.30);transition:transform .15s,box-shadow .15s;" style-hover="transform:translateY(-2px);box-shadow:0 16px 34px rgba(255,77,141,0.40);">כניסה מאובטחת ✨</button>
+<div style="display:flex;align-items:center;gap:12px;color:#C3AEB1;font-size:12px;margin:18px 0;"><span style="flex:1;height:1px;background:rgba(58,42,46,0.10);"></span>או<span style="flex:1;height:1px;background:rgba(58,42,46,0.10);"></span></div>
+<button onClick="{{ goRegister }}" style="width:100%;padding:14px;background:#fff;border:1.5px solid rgba(58,42,46,0.12);border-radius:16px;color:#3A2A2E;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s;" style-hover="background:#FFF0E8;">צור חשבון חדש</button>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:26px;">
+<span style="font-size:11px;color:#A08A8E;background:#fff;border:1px solid rgba(58,42,46,0.06);border-radius:20px;padding:6px 13px;">🔒 TLS 1.3</span>
+<span style="font-size:11px;color:#A08A8E;background:#fff;border:1px solid rgba(58,42,46,0.06);border-radius:20px;padding:6px 13px;">🛡️ AES-256</span>
+<span style="font-size:11px;color:#A08A8E;background:#fff;border:1px solid rgba(58,42,46,0.06);border-radius:20px;padding:6px 13px;">RLS Enforced</span>
+</div>
+</div>
+</sc-if>
+
+<!-- ════════ REGISTER ════════ -->
+<sc-if value="{{ isRegister }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;background:radial-gradient(ellipse 80% 50% at 50% -2%,rgba(255,92,126,0.16),transparent 70%);">
+<div style="width:76px;height:76px;border-radius:23px;background:linear-gradient(135deg,#FF7E4F,#FF45A0);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:800;color:#fff;box-shadow:0 18px 42px rgba(255,77,141,0.34);">₪</div>
+<div style="font-size:34px;font-weight:800;margin-top:22px;letter-spacing:-0.5px;text-align:center;">יצירת חשבון 🎉</div>
+<p style="font-size:15px;color:#A08A8E;margin-top:8px;margin-bottom:30px;text-align:center;">הנתונים שלך יהיו נגישים רק לך</p>
+<div style="width:100%;max-width:404px;background:#fff;border-radius:28px;padding:30px;box-shadow:0 24px 60px rgba(255,107,91,0.13);">
+<div style="font-size:19px;font-weight:700;margin-bottom:22px;">חשבון חדש</div>
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;font-weight:600;color:#A08A8E;margin-bottom:8px;">כתובת אימייל</label><input type="email" value="{{ rEmail }}" onChange="{{ setREmail }}" placeholder="name@example.com" style="width:100%;padding:14px 16px;background:#FFF7F3;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;direction:ltr;text-align:left;transition:all .2s;" style-focus="border-color:#FF5C7E;background:#fff;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;font-weight:600;color:#A08A8E;margin-bottom:8px;">סיסמה (מינימום 8 תווים)</label><input type="password" value="{{ rPwd }}" onChange="{{ setRPwd }}" placeholder="בחר סיסמה חזקה" style="width:100%;padding:14px 16px;background:#FFF7F3;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;direction:ltr;text-align:left;transition:all .2s;" style-focus="border-color:#FF5C7E;background:#fff;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<button onClick="{{ goApp }}" style="width:100%;padding:15px;background:linear-gradient(135deg,#FF7E4F,#FF45A0);border:none;border-radius:16px;color:#fff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px;box-shadow:0 12px 26px rgba(255,77,141,0.30);transition:transform .15s,box-shadow .15s;" style-hover="transform:translateY(-2px);box-shadow:0 16px 34px rgba(255,77,141,0.40);">צור חשבון 🚀</button>
+<div style="display:flex;align-items:center;gap:12px;color:#C3AEB1;font-size:12px;margin:18px 0;"><span style="flex:1;height:1px;background:rgba(58,42,46,0.10);"></span>או<span style="flex:1;height:1px;background:rgba(58,42,46,0.10);"></span></div>
+<button onClick="{{ goLogin }}" style="width:100%;padding:14px;background:#fff;border:1.5px solid rgba(58,42,46,0.12);border-radius:16px;color:#3A2A2E;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s;" style-hover="background:#FFF0E8;">כבר יש לי חשבון</button>
+</div>
+</div>
+</sc-if>
+
+<!-- ════════ APP ════════ -->
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;min-height:100vh;">
+
+<!-- SIDEBAR (desktop) -->
+<aside style="width:272px;flex-shrink:0;background:#FFEDE2;border-left:1px solid rgba(58,42,46,0.07);padding:26px 18px;display:{{ sidebarDisplay }};flex-direction:column;position:sticky;top:0;height:100vh;">
+<div style="display:flex;align-items:center;gap:11px;padding:0 8px;">
+<div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#FF7E4F,#FF45A0);display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:800;color:#fff;box-shadow:0 8px 18px rgba(255,77,141,0.28);flex-shrink:0;">₪</div>
+<div><div style="font-weight:800;font-size:20px;line-height:1;">כספון</div><div style="font-size:10.5px;color:#FF5C7E;font-weight:700;letter-spacing:1.5px;margin-top:3px;">PREMIUM</div></div>
+</div>
+<nav style="margin-top:26px;display:flex;flex-direction:column;gap:5px;">
+<sc-for list="{{ navItems }}" as="n" hint-placeholder-count="5">
+<button onClick="{{ n.onClick }}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:right;border:none;font-family:inherit;cursor:pointer;font-size:15px;font-weight:600;padding:12px 14px;border-radius:15px;transition:transform .16s;background:{{ n.bg }};color:{{ n.color }};box-shadow:{{ n.shadow }};" style-hover="transform:translateX(-3px);"><span style="font-size:18px;">{{ n.icon }}</span>{{ n.label }}</button>
+</sc-for>
+</nav>
+<div style="flex:1;"></div>
+<button onClick="{{ goAdd }}" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:1.5px dashed rgba(255,92,126,0.45);background:rgba(255,92,126,0.08);color:#FF5C7E;font-size:14px;font-weight:700;padding:13px;border-radius:15px;cursor:pointer;font-family:inherit;margin-bottom:14px;transition:background .15s;" style-hover="background:rgba(255,92,126,0.16);">＋ עסקה חדשה</button>
+<div style="display:flex;align-items:center;gap:11px;padding:11px 12px;background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:16px;box-shadow:0 6px 16px rgba(255,107,91,0.06);">
+<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#FF7E4F,#FF45A0);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0;">{{ userInitial }}</div>
+<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;">החשבון שלי</div><div style="font-size:11px;color:#BCA7AA;direction:ltr;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ userEmail }}</div></div>
+<button onClick="{{ doSignout }}" title="התנתק" style="border:none;background:transparent;color:#C3AEB1;font-size:15px;cursor:pointer;padding:4px;" style-hover="color:#E05260;">⏻</button>
+</div>
+</aside>
+
+<!-- CONTENT COLUMN -->
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+
+<!-- TOP BAR (mobile/tablet) -->
+<header style="display:{{ topbarDisplay }};align-items:center;justify-content:space-between;padding:13px 18px;position:sticky;top:0;z-index:90;background:rgba(255,244,236,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(58,42,46,0.06);">
+<div style="display:flex;align-items:center;gap:10px;"><div style="width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#FF7E4F,#FF45A0);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;">₪</div><div style="font-weight:800;font-size:18px;">כספון</div></div>
+<button onClick="{{ doSignout }}" title="התנתק" style="border:none;background:#fff;width:38px;height:38px;border-radius:50%;color:#C3AEB1;font-size:16px;cursor:pointer;box-shadow:0 4px 12px rgba(255,107,91,0.08);">⏻</button>
+</header>
+
+<main style="flex:1;width:100%;max-width:1180px;margin:0 auto;padding:{{ mainPad }};">
+
+<!-- HOME -->
+<sc-if value="{{ tHome }}" hint-placeholder-val="{{ true }}">
+<div>
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px;flex-wrap:wrap;gap:14px;">
+<div><div style="font-size:13px;color:#FF5C7E;font-weight:700;letter-spacing:1.5px;">סקירה חודשית</div><h1 style="font-size:{{ h1Size }};font-weight:800;letter-spacing:-1px;margin-top:6px;">{{ monthLabel }}</h1></div>
+<div style="display:flex;align-items:center;gap:8px;">
+<button onClick="{{ changePrev }}" style="width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid rgba(58,42,46,0.10);color:#3A2A2E;font-size:18px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;transition:background .15s;" style-hover="background:#FFF0E8;">‹</button>
+<button onClick="{{ goToday }}" style="background:transparent;border:1.5px solid rgba(255,92,126,0.4);border-radius:22px;color:#FF5C7E;font-size:13px;font-weight:700;padding:9px 18px;cursor:pointer;font-family:inherit;transition:background .15s;" style-hover="background:rgba(255,92,126,0.1);">היום</button>
+<button onClick="{{ changeNext }}" style="width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid rgba(58,42,46,0.10);color:#3A2A2E;font-size:18px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;transition:background .15s;" style-hover="background:#FFF0E8;">›</button>
+</div>
+</div>
+<div style="position:relative;overflow:hidden;border-radius:30px;padding:{{ heroPad }};color:#fff;background:linear-gradient(135deg,#FF7E4F 0%,#FF5C7E 52%,#FF45A0 100%);box-shadow:0 24px 50px rgba(255,77,141,0.28);margin-bottom:18px;display:flex;flex-direction:{{ heroDir }};justify-content:space-between;align-items:{{ heroAlign }};gap:28px;">
+<div style="position:absolute;top:-80px;left:-40px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,0.22),transparent 70%);animation:floatBlob 9s ease-in-out infinite;pointer-events:none;"></div>
+<div style="position:absolute;bottom:-110px;right:8%;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,120,0.34),transparent 70%);animation:floatBlob 12s ease-in-out infinite reverse;pointer-events:none;"></div>
+<div style="position:relative;"><div style="font-size:14px;opacity:.88;margin-bottom:12px;">💸 סך הוצאות החודש</div><div style="font-size:{{ heroAmtSize }};font-weight:800;letter-spacing:-2px;line-height:.95;">{{ spentStr }}</div></div>
+<div style="position:relative;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 0;width:{{ statsWidth }};">
+<div style="padding:{{ statPad }};border-left:1px solid rgba(255,255,255,0.22);"><div style="font-size:12px;opacity:.8;margin-bottom:7px;">עסקאות</div><div style="font-size:{{ statValSize }};font-weight:800;">{{ cntStr }}</div></div>
+<div style="padding:{{ statPad }};border-left:1px solid rgba(255,255,255,0.22);"><div style="font-size:12px;opacity:.8;margin-bottom:7px;">קטגוריות</div><div style="font-size:{{ statValSize }};font-weight:800;">{{ catCountStr }}</div></div>
+<div style="padding:{{ statPad }};"><div style="font-size:12px;opacity:.8;margin-bottom:7px;">ממוצע</div><div style="font-size:{{ statValSize }};font-weight:800;">{{ avgStr }}</div></div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;">
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:26px;box-shadow:0 14px 34px rgba(255,107,91,0.07);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:18px;font-weight:700;">עסקאות אחרונות</span><button onClick="{{ goTxns }}" style="background:none;border:none;color:#FF5C7E;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">הצג הכל ←</button></div>
+<div style="display:flex;flex-direction:column;">
+<sc-for list="{{ recentTx }}" as="t" hint-placeholder-count="5">
+<div onClick="{{ t.onClick }}" style="display:flex;align-items:center;gap:14px;padding:13px 10px;cursor:pointer;border-radius:16px;transition:background .14s;" style-hover="background:#FFF3EC;">
+<div style="width:46px;height:46px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:21px;background:{{ t.iconBg }};">{{ t.emoji }}</div>
+<div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.name }}</div><div style="display:flex;align-items:center;gap:7px;margin-top:4px;flex-wrap:wrap;"><span style="font-size:12px;color:#BCA7AA;">{{ t.meta }}</span><span style="font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;background:{{ t.catBg }};color:{{ t.catColor }};">{{ t.catLabel }}</span></div></div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;"><div style="font-size:16px;font-weight:700;color:{{ t.amtColor }};">{{ t.amtStr }}</div><sc-if value="{{ t.hasForeign }}" hint-placeholder-val="{{ false }}"><div style="font-size:11px;color:#BCA7AA;direction:ltr;margin-top:2px;">{{ t.foreignStr }}</div></sc-if></div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:26px;box-shadow:0 14px 34px rgba(255,107,91,0.07);">
+<div style="font-size:18px;font-weight:700;margin-bottom:22px;">לפי קטגוריה</div>
+<sc-for list="{{ catBars }}" as="b" hint-placeholder-count="5">
+<div style="margin-bottom:17px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px;"><span style="font-size:15px;">{{ b.emoji }}</span>{{ b.label }}</span><span style="font-size:13.5px;font-weight:700;">{{ b.valueStr }}</span></div><div style="height:9px;background:rgba(58,42,46,0.06);border-radius:6px;overflow:hidden;"><div style="height:100%;border-radius:6px;transition:width .6s cubic-bezier(.16,1,.3,1);width:{{ b.pct }}%;background:{{ b.color }};"></div></div></div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- TRANSACTIONS -->
+<sc-if value="{{ tTxns }}" hint-placeholder-val="{{ false }}">
+<div>
+<h1 style="font-size:{{ titleSize }};font-weight:800;letter-spacing:-1px;margin-bottom:6px;">עסקאות</h1>
+<p style="font-size:14.5px;color:#BCA7AA;margin-bottom:24px;">כל התנועות בחשבון שלך</p>
+<div style="position:relative;margin-bottom:18px;"><span style="position:absolute;top:50%;right:16px;transform:translateY(-50%);color:#C3AEB1;font-size:16px;pointer-events:none;">🔍</span><input value="{{ q }}" onChange="{{ setQ }}" placeholder="חיפוש לפי שם עסק…" style="width:100%;padding:14px 44px 14px 16px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:15px;font-size:16px;font-family:inherit;outline:none;color:#3A2A2E;transition:all .2s;" style-focus="border-color:#FF5C7E;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+<sc-for list="{{ chips }}" as="ch" hint-placeholder-count="7">
+<button onClick="{{ ch.onClick }}" style="padding:8px 15px;border-radius:22px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .14s;white-space:nowrap;background:{{ ch.bg }};color:{{ ch.fg }};border:1.5px solid {{ ch.border }};">{{ ch.label }}</button>
+</sc-for>
+</div>
+<div style="font-size:13px;color:#BCA7AA;margin-bottom:14px;">{{ txnsCountStr }} · {{ txnsSpentStr }}</div>
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:14px 22px;box-shadow:0 14px 34px rgba(255,107,91,0.07);">
+<div style="display:flex;flex-direction:column;">
+<sc-for list="{{ filteredTx }}" as="t" hint-placeholder-count="6">
+<div onClick="{{ t.onClick }}" style="display:flex;align-items:center;gap:14px;padding:13px 6px;cursor:pointer;border-radius:16px;transition:background .14s;" style-hover="background:#FFF3EC;">
+<div style="width:46px;height:46px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:21px;background:{{ t.iconBg }};">{{ t.emoji }}</div>
+<div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.name }}</div><div style="display:flex;align-items:center;gap:7px;margin-top:4px;flex-wrap:wrap;"><span style="font-size:12px;color:#BCA7AA;">{{ t.meta }}</span><span style="font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;background:{{ t.catBg }};color:{{ t.catColor }};">{{ t.catLabel }}</span></div></div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;"><div style="font-size:16px;font-weight:700;color:{{ t.amtColor }};">{{ t.amtStr }}</div><sc-if value="{{ t.hasForeign }}" hint-placeholder-val="{{ false }}"><div style="font-size:11px;color:#BCA7AA;direction:ltr;margin-top:2px;">{{ t.foreignStr }}</div></sc-if></div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ txnsEmpty }}" hint-placeholder-val="{{ false }}"><div style="text-align:center;padding:40px;color:#BCA7AA;font-size:14px;">לא נמצאו עסקאות 🔍</div></sc-if>
+</div>
+</div>
+</sc-if>
+
+<!-- ANALYTICS -->
+<sc-if value="{{ tAnalytics }}" hint-placeholder-val="{{ false }}">
+<div>
+<h1 style="font-size:{{ titleSize }};font-weight:800;letter-spacing:-1px;margin-bottom:6px;">אנליטיקה</h1>
+<p style="font-size:14.5px;color:#BCA7AA;margin-bottom:24px;">ניתוח הרגלי הוצאה לאורך זמן</p>
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:26px;box-shadow:0 14px 34px rgba(255,107,91,0.07);margin-bottom:18px;">
+<div style="font-size:18px;font-weight:700;margin-bottom:26px;">הוצאות לפי חודש</div>
+<div style="display:flex;align-items:stretch;justify-content:space-between;gap:10px;height:230px;">
+<sc-for list="{{ months }}" as="m" hint-placeholder-count="6">
+<div style="flex:1;height:100%;display:flex;flex-direction:column;align-items:center;">
+<div style="flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:8px;"><div style="font-size:11.5px;font-weight:700;color:#6E565B;">{{ m.valueStr }}</div><div style="width:100%;max-width:52px;border-radius:12px 12px 5px 5px;transition:height .6s cubic-bezier(.16,1,.3,1);height:{{ m.pct }}%;background:{{ m.barBg }};"></div></div>
+<div style="font-size:12px;color:#A08A8E;font-weight:600;margin-top:10px;">{{ m.label }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;">
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:26px;box-shadow:0 14px 34px rgba(255,107,91,0.07);">
+<div style="font-size:18px;font-weight:700;margin-bottom:20px;">פילוח קטגוריות</div>
+<div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+<div style="position:relative;width:172px;height:172px;flex-shrink:0;margin:0 auto;">
+<svg viewBox="0 0 200 200" style="width:172px;height:172px;transform:rotate(-90deg);">
+<circle cx="100" cy="100" r="70" fill="none" stroke="#FFEDE2" stroke-width="26"></circle>
+<sc-for list="{{ donut }}" as="d" hint-placeholder-count="6">
+<circle cx="100" cy="100" r="70" fill="none" stroke="{{ d.color }}" stroke-width="26" stroke-dasharray="{{ d.dash }}" stroke-dashoffset="{{ d.offset }}"></circle>
+</sc-for>
+</svg>
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;"><div style="font-size:11px;color:#A08A8E;">סה״כ</div><div style="font-size:19px;font-weight:800;letter-spacing:-.5px;">{{ donutTotalStr }}</div></div>
+</div>
+<div style="flex:1;min-width:130px;display:flex;flex-direction:column;gap:9px;">
+<sc-for list="{{ donutLegend }}" as="l" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:9px;font-size:13px;"><span style="width:11px;height:11px;border-radius:4px;background:{{ l.color }};flex-shrink:0;"></span><span style="flex:1;">{{ l.label }}</span><span style="font-weight:700;color:#6E565B;">{{ l.pct }}%</span></div>
+</sc-for>
+</div>
+</div>
+</div>
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:26px;box-shadow:0 14px 34px rgba(255,107,91,0.07);">
+<div style="font-size:18px;font-weight:700;margin-bottom:24px;">אמצעי תשלום</div>
+<sc-for list="{{ methods }}" as="m" hint-placeholder-count="4">
+<div style="margin-bottom:18px;"><div style="display:flex;justify-content:space-between;font-size:13.5px;font-weight:600;margin-bottom:9px;"><span>{{ m.label }}</span><span style="color:#A08A8E;">{{ m.countStr }}</span></div><div style="height:14px;background:rgba(58,42,46,0.06);border-radius:8px;overflow:hidden;"><div style="height:100%;border-radius:8px;transition:width .6s ease;width:{{ m.pct }}%;background:{{ m.color }};"></div></div></div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- ADD -->
+<sc-if value="{{ tAdd }}" hint-placeholder-val="{{ false }}">
+<div>
+<h1 style="font-size:{{ titleSize }};font-weight:800;letter-spacing:-1px;margin-bottom:6px;">הוספת עסקה</h1>
+<p style="font-size:14.5px;color:#BCA7AA;margin-bottom:24px;">רישום ידני מהיר לדשבורד</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px;align-items:start;">
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:26px;box-shadow:0 14px 34px rgba(255,107,91,0.07);">
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;color:#A08A8E;font-weight:600;margin-bottom:8px;">שם בית העסק *</label><input value="{{ aMerchant }}" onChange="{{ setMerchant }}" placeholder="לדוגמה: שופרסל דיל" style="width:100%;padding:13px 15px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;transition:all .2s;" style-focus="border-color:#FF5C7E;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;">
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;color:#A08A8E;font-weight:600;margin-bottom:8px;">סכום ₪ *</label><input type="number" value="{{ aAmount }}" onChange="{{ setAmount }}" placeholder="0.00" style="width:100%;padding:13px 15px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;direction:ltr;text-align:left;transition:all .2s;" style-focus="border-color:#FF5C7E;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;color:#A08A8E;font-weight:600;margin-bottom:8px;">אמצעי תשלום</label><select value="{{ aMethod }}" onChange="{{ setMethod }}" style="width:100%;padding:13px 15px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;cursor:pointer;"><option>כרטיס אשראי</option><option>מזומן</option><option>העברה בנקאית</option><option>הוראת קבע</option></select></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;">
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;color:#A08A8E;font-weight:600;margin-bottom:8px;">תאריך</label><input type="date" value="{{ aDate }}" onChange="{{ setDate }}" style="width:100%;padding:13px 15px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;direction:ltr;transition:all .2s;" style-focus="border-color:#FF5C7E;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;color:#A08A8E;font-weight:600;margin-bottom:8px;">קטגוריה</label><select value="{{ aCat }}" onChange="{{ setCat }}" style="width:100%;padding:13px 15px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;cursor:pointer;"><option value="">✨ זיהוי אוטומטי</option><sc-for list="{{ catOptions }}" as="o" hint-placeholder-count="10"><option value="{{ o.key }}">{{ o.label }}</option></sc-for></select></div>
+</div>
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;color:#A08A8E;font-weight:600;margin-bottom:8px;">הערות</label><input value="{{ aNotes }}" onChange="{{ setNotes }}" placeholder="אופציונלי…" style="width:100%;padding:13px 15px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;transition:all .2s;" style-focus="border-color:#FF5C7E;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<button onClick="{{ doAdd }}" style="width:100%;padding:15px;background:linear-gradient(135deg,#FF7E4F,#FF45A0);border:none;border-radius:16px;color:#fff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px;box-shadow:0 12px 26px rgba(255,77,141,0.26);transition:transform .15s,box-shadow .15s;" style-hover="transform:translateY(-2px);box-shadow:0 16px 34px rgba(255,77,141,0.36);">שמור עסקה ✓</button>
+</div>
+<div>
+<div style="font-size:12px;font-weight:700;color:#FF5C7E;letter-spacing:1px;margin-bottom:12px;">תצוגה מקדימה</div>
+<div style="position:relative;overflow:hidden;border-radius:24px;padding:26px;color:#fff;background:linear-gradient(135deg,#FF7E4F,#FF45A0);box-shadow:0 18px 40px rgba(255,77,141,0.26);">
+<div style="position:absolute;top:-60px;left:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,0.20),transparent 70%);pointer-events:none;"></div>
+<div style="position:relative;display:flex;align-items:center;gap:14px;margin-bottom:22px;"><div style="width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;font-size:24px;">{{ pvEmoji }}</div><div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ pvName }}</div><div style="font-size:12px;opacity:.8;margin-top:3px;">{{ aMethod }}</div></div></div>
+<div style="position:relative;font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:12px;">−{{ pvAmtStr }}</div>
+<span style="position:relative;display:inline-block;font-size:12px;font-weight:700;background:rgba(255,255,255,0.22);padding:5px 13px;border-radius:20px;">{{ pvCatLabel }}</span>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- SETTINGS -->
+<sc-if value="{{ tSettings }}" hint-placeholder-val="{{ false }}">
+<div style="max-width:720px;">
+<h1 style="font-size:{{ titleSize }};font-weight:800;letter-spacing:-1px;margin-bottom:6px;">הגדרות</h1>
+<p style="font-size:14.5px;color:#BCA7AA;margin-bottom:24px;">חשבון, אבטחה וייצוא נתונים</p>
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:24px;box-shadow:0 14px 34px rgba(255,107,91,0.07);margin-bottom:18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+<div style="width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#FF7E4F,#FF45A0);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;flex-shrink:0;">{{ userInitial }}</div>
+<div style="flex:1;min-width:0;"><div style="font-size:17px;font-weight:700;">החשבון שלי</div><div style="font-size:13px;color:#BCA7AA;direction:ltr;text-align:right;">{{ userEmail }}</div></div>
+<span style="font-size:11px;font-weight:700;color:#FF5C7E;background:rgba(255,92,126,0.12);padding:6px 13px;border-radius:20px;flex-shrink:0;">PREMIUM ✨</span>
+</div>
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:24px 26px;box-shadow:0 14px 34px rgba(255,107,91,0.07);margin-bottom:18px;">
+<div style="font-size:18px;font-weight:700;margin-bottom:8px;">מצב אבטחה</div>
+<div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid rgba(58,42,46,0.06);font-size:14px;"><span style="width:8px;height:8px;border-radius:50%;background:#2FB876;flex-shrink:0;box-shadow:0 0 8px rgba(47,184,118,0.5);"></span><span style="flex:1;">אימות משתמש (Auth)</span><span style="color:#2FB876;font-size:12.5px;font-weight:700;">פעיל</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid rgba(58,42,46,0.06);font-size:14px;"><span style="width:8px;height:8px;border-radius:50%;background:#2FB876;flex-shrink:0;box-shadow:0 0 8px rgba(47,184,118,0.5);"></span><span style="flex:1;">Row Level Security</span><span style="color:#2FB876;font-size:12.5px;font-weight:700;">פעיל</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid rgba(58,42,46,0.06);font-size:14px;"><span style="width:8px;height:8px;border-radius:50%;background:#2FB876;flex-shrink:0;box-shadow:0 0 8px rgba(47,184,118,0.5);"></span><span style="flex:1;">הצפנת TLS 1.3</span><span style="color:#2FB876;font-size:12.5px;font-weight:700;">פעיל</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:13px 0;font-size:14px;"><span style="width:8px;height:8px;border-radius:50%;background:#2FB876;flex-shrink:0;box-shadow:0 0 8px rgba(47,184,118,0.5);"></span><span style="flex:1;">Edge Function + Secret Token</span><span style="color:#2FB876;font-size:12.5px;font-weight:700;">פעיל</span></div>
+</div>
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:24px 26px;box-shadow:0 14px 34px rgba(255,107,91,0.07);margin-bottom:18px;">
+<div style="font-size:18px;font-weight:700;margin-bottom:14px;">נתונים</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;">
+<button onClick="{{ doExport }}" style="background:#fff;border:1.5px solid rgba(58,42,46,0.12);border-radius:14px;color:#3A2A2E;font-size:14px;font-weight:600;padding:12px 18px;cursor:pointer;font-family:inherit;transition:background .15s;" style-hover="background:#FFF0E8;">⬇ ייצוא CSV</button>
+<button onClick="{{ doRecat }}" style="background:#fff;border:1.5px solid rgba(58,42,46,0.12);border-radius:14px;color:#3A2A2E;font-size:14px;font-weight:600;padding:12px 18px;cursor:pointer;font-family:inherit;transition:background .15s;" style-hover="background:#FFF0E8;">🔄 סווג מחדש</button>
+</div>
+</div>
+<div style="background:#fff;border:1px solid rgba(58,42,46,0.05);border-radius:24px;padding:24px 26px;box-shadow:0 14px 34px rgba(255,107,91,0.07);">
+<div style="font-size:18px;font-weight:700;margin-bottom:14px;">חשבון</div>
+<button onClick="{{ doSignout }}" style="background:rgba(224,82,96,0.10);border:1.5px solid rgba(224,82,96,0.25);border-radius:14px;color:#E05260;font-weight:600;padding:12px 18px;cursor:pointer;font-family:inherit;font-size:14px;transition:background .15s;" style-hover="background:rgba(224,82,96,0.18);">יציאה מהחשבון</button>
+</div>
+</div>
+</sc-if>
+
+</main>
+</div>
+
+<!-- BOTTOM NAV (mobile/tablet) -->
+<nav style="display:{{ bottomNavDisplay }};position:fixed;bottom:0;left:0;right:0;z-index:100;justify-content:space-around;background:rgba(255,237,226,0.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(58,42,46,0.07);padding:8px 0 max(8px,env(safe-area-inset-bottom));">
+<sc-for list="{{ navItems }}" as="n" hint-placeholder-count="5">
+<button onClick="{{ n.onClick }}" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:600;color:{{ n.bnColor }};padding:5px 10px;min-width:54px;transition:color .15s;"><span style="font-size:21px;">{{ n.icon }}</span>{{ n.bnLabel }}</button>
+</sc-for>
+</nav>
+
+</div>
+</sc-if>
+
+<!-- TOAST -->
+<sc-if value="{{ toastShow }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;top:26px;left:0;right:0;display:flex;justify-content:center;z-index:300;pointer-events:none;padding:0 16px;"><div style="color:#fff;font-size:14px;font-weight:700;padding:13px 24px;border-radius:24px;box-shadow:0 16px 44px rgba(58,42,46,0.30);text-align:center;background:{{ toastColor }};">{{ toastMsg }}</div></div>
+</sc-if>
+
+<!-- EDIT MODAL -->
+<sc-if value="{{ hasEdit }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeEdit }}" style="position:fixed;inset:0;z-index:200;background:rgba(58,42,46,0.45);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);">
+<div onClick="{{ stop }}" style="background:#fff;border-radius:26px;padding:30px;width:100%;max-width:440px;box-shadow:0 30px 80px rgba(58,42,46,0.3);">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:46px;height:46px;border-radius:14px;background:{{ editBg }};display:flex;align-items:center;justify-content:center;font-size:22px;">{{ editEmoji }}</div><div style="font-size:22px;font-weight:800;">עריכת עסקה</div></div>
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;color:#A08A8E;font-weight:600;margin-bottom:8px;">שם בית העסק</label><input value="{{ eMerchant }}" onChange="{{ setEMerchant }}" style="width:100%;padding:13px 15px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;transition:all .2s;" style-focus="border-color:#FF5C7E;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;">
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;color:#A08A8E;font-weight:600;margin-bottom:8px;">סכום ₪</label><input type="number" value="{{ eAmount }}" onChange="{{ setEAmount }}" style="width:100%;padding:13px 15px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;direction:ltr;text-align:left;transition:all .2s;" style-focus="border-color:#FF5C7E;box-shadow:0 0 0 3px rgba(255,92,126,0.12);" /></div>
+<div style="margin-bottom:16px;"><label style="display:block;font-size:12px;color:#A08A8E;font-weight:600;margin-bottom:8px;">קטגוריה</label><select value="{{ eCat }}" onChange="{{ setECat }}" style="width:100%;padding:13px 15px;background:#fff;border:1.5px solid rgba(58,42,46,0.10);border-radius:14px;color:#3A2A2E;font-size:16px;font-family:inherit;outline:none;cursor:pointer;"><sc-for list="{{ catOptions }}" as="o" hint-placeholder-count="10"><option value="{{ o.key }}">{{ o.label }}</option></sc-for></select></div>
+</div>
+<div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;">
+<button onClick="{{ saveEdit }}" style="flex:1;min-width:120px;padding:14px;background:linear-gradient(135deg,#FF7E4F,#FF45A0);border:none;border-radius:14px;color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 10px 22px rgba(255,77,141,0.26);">שמור</button>
+<button onClick="{{ delEdit }}" style="padding:14px 18px;background:rgba(224,82,96,0.10);border:1.5px solid rgba(224,82,96,0.25);border-radius:14px;color:#E05260;font-weight:600;font-family:inherit;cursor:pointer;font-size:14px;">מחק</button>
+<button onClick="{{ closeEdit }}" style="padding:14px 18px;background:#fff;border:1.5px solid rgba(58,42,46,0.12);border-radius:14px;color:#3A2A2E;font-weight:600;font-family:inherit;cursor:pointer;font-size:14px;">ביטול</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;userEmail&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;demo@kaspon.app&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showCents&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.CAT_ORDER=['food','restaurants','transport','fuel','health','fitness','beauty','clothing','shopping','home','tech','entertainment','travel','kids','education','pets','gifts','bills','insurance','fees','income','other'];
+    this.MHE=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+    this.CATS={
+      food:{label:'מזון',color:'#35B07A',emoji:'🛒'},
+      restaurants:{label:'מסעדות וקפה',color:'#FF8A3D',emoji:'🍽️'},
+      transport:{label:'תחבורה',color:'#4A8FE7',emoji:'🚌'},
+      fuel:{label:'דלק',color:'#FF6B4A',emoji:'⛽'},
+      health:{label:'בריאות',color:'#2FB8A6',emoji:'💊'},
+      fitness:{label:'כושר וספורט',color:'#34C172',emoji:'🏋️'},
+      beauty:{label:'יופי וטיפוח',color:'#FF6FB5',emoji:'💄'},
+      clothing:{label:'ביגוד והנעלה',color:'#F0568C',emoji:'👗'},
+      shopping:{label:'קניות',color:'#C95BD8',emoji:'🛍️'},
+      home:{label:'בית וריהוט',color:'#D2A24C',emoji:'🛋️'},
+      tech:{label:'טכנולוגיה',color:'#7B6EF0',emoji:'💻'},
+      entertainment:{label:'בידור',color:'#FF5470',emoji:'🎬'},
+      travel:{label:'נסיעות וחופשות',color:'#3FB0E0',emoji:'✈️'},
+      kids:{label:'ילדים',color:'#FFAE3B',emoji:'🧸'},
+      education:{label:'חינוך',color:'#5B7CF0',emoji:'🎓'},
+      pets:{label:'חיות מחמד',color:'#B0835F',emoji:'🐾'},
+      gifts:{label:'מתנות',color:'#FF6FA3',emoji:'🎁'},
+      bills:{label:'חשבונות',color:'#7C8497',emoji:'🧾'},
+      insurance:{label:'ביטוח',color:'#9B7FE0',emoji:'🛡️'},
+      fees:{label:'עמלות ובנק',color:'#8A8A8A',emoji:'🏦'},
+      income:{label:'הכנסה',color:'#2FB876',emoji:'💰'},
+      other:{label:'אחר',color:'#A89A92',emoji:'✨'}
+    };
+    this.FX={USD:'$',EUR:'€',GBP:'£'};
+    this.RULES=[
+      [/יס.?פלאנט|סינמה.?סיטי|cinema|רב.?חן|קולנוע|תיאטרון|הצגה|מופע|הופעה/i,'entertainment'],
+      [/סופר.?פארם|super.?pharm|ניו.?פארם|פארם|מכבי|כללית|מאוחדת|מרפאה|רופא|שיניים|אופטיק|תרופ/i,'health'],
+      [/(?:^|\s)פז|\bpaz\b|סונול|sonol|דלק\b|delek|דור.?אלון|תחנת.?דלק|תדלוק|fuel/i,'fuel'],
+      [/הולמס|holmes|גו.?אקטיב|חדר.?כושר|כושר|\bgym\b|fitness|קרוספיט|יוגה|פילאטיס|בריכה/i,'fitness'],
+      [/הראל|מנורה|הפניקס|ביטוח|insurance|פנסי|קופת.?גמל|פוליסה/i,'insurance'],
+      [/בזק|bezeq|פרטנר|סלקום|פלאפון|הוט|\byes\b|חשמל|electric|מי.?אביבים|מקורות|ארנונה|עירייה|אינטרנט|כבלים|הוראת.?קבע|ועד.?בית/i,'bills'],
+      [/\bgett\b|(?:^|\s)גט|\bbolt\b|\buber\b|אובר|יאנגו|רב.?קו|אוטובוס|רכבת|מונית|taxi|אגד|מוסך|צמיגים|חניון|חניה|pango/i,'transport'],
+      [/אל.?על|\bel.?al\b|טיסה|flight|מלון|\bhotel\b|booking|airbnb|איסתא|issta|השכרת.?רכב|נתב.?ג|צימר|duty.?free/i,'travel'],
+      [/spotify|ספוטיפיי|netflix|נטפליקס|\bapple\b|itunes|icloud|\bgoogle\b|youtube|disney|amazon.?prime|microsoft|adobe|chatgpt|openai|claude|figma|playstation|xbox|steam|\bksp\b|ivory|מחשבים|app.?store/i,'tech'],
+      [/אוניברסיט|מכלל|college|בית.?ספר|שכר.?לימוד|\bקורס\b|course|udemy|coursera|סמינר/i,'education'],
+      [/גן.?ילדים|פעוטון|מעון|צהרון|בייביסיטר|צעצוע|\btoys\b|\bbaby\b|תינוק/i,'kids'],
+      [/וטרינר|\bvet\b|חיות.?מחמד|פט.?שופ|pet.?shop|petco|פטקו/i,'pets'],
+      [/קפה|cafe|coffee|ארומה|aroma|קופיקס|cofix|starbucks|רולדין|מאפה|bakery|מסעד|restaurant|בורגר|burger|מקדונלד|kfc|דומינוס|פיצה|pizza|סושי|sushi|שווארמה|פלאפל|וולט|\bwolt\b|10bis|גלידה|לנדוור/i,'restaurants'],
+      [/שופרסל|shufersal|רמי.?לוי|rami.?levy|ויקטורי|מגה\b|יוחננוף|טיב.?טעם|אושר.?עד|am.?pm|סופר\b|מכולת|ירקן|קצביה|חצי.?חינם/i,'food'],
+      [/מספרה|barber|קוסמטיק|מניקור|פדיקור|sephora|ספורה|איפור|makeup|בושם|perfume|\bspa\b|ספא|טיפוח/i,'beauty'],
+      [/קסטרו|castro|\bzara\b|זארה|h&m|\bfox\b|פוקס|רנואר|golf\b|mango|מנגו|terminal|\bnike\b|נייקי|adidas|אדידס|נעלי|shoes|הנעלה|בגדים|ביגוד/i,'clothing'],
+      [/ikea|איקאה|הום.?סנטר|home.?center|\bace\b|רהיט|furniture|מזרון|כלי.?בית|טמבור|חומרי.?בניין/i,'home'],
+      [/מתנה|\bgift\b|פרחים|flowers|זר.?פרחים/i,'gifts'],
+      [/עמלה|דמי.?כרטיס|דמי.?ניהול|ריבית|bank.?fee/i,'fees'],
+      [/amazon|\bebay\b|aliexpress|עליאקספרס|\bzap\b|סטימצקי|ספרים\b|חנות\b|\bstore\b|\bshop\b|קרביץ|תכשיט|שעונים/i,'shopping']
+    ];
+    let id=1;
+    this.TX=[
+      {id:id++,merchant:'שופרסל דיל',amount:-342.80,category:'food',method:'כרטיס אשראי',time:'19:24'},
+      {id:id++,merchant:'ארומה',amount:-38.00,category:'restaurants',method:'מזומן',time:'09:15'},
+      {id:id++,merchant:'פז',amount:-290.00,category:'fuel',method:'כרטיס אשראי',time:'18:40'},
+      {id:id++,merchant:'Gett',amount:-47.50,category:'transport',method:'כרטיס אשראי',time:'22:05'},
+      {id:id++,merchant:'נטפליקס',amount:-54.90,category:'tech',method:'כרטיס אשראי',time:'03:00'},
+      {id:id++,merchant:'סופר־פארם',amount:-119.30,category:'health',method:'כרטיס אשראי',time:'16:10'},
+      {id:id++,merchant:'ZARA',amount:-289.00,category:'clothing',method:'כרטיס אשראי',time:'13:30'},
+      {id:id++,merchant:'Wolt',amount:-88.00,category:'restaurants',method:'כרטיס אשראי',time:'20:45'},
+      {id:id++,merchant:'הולמס פלייס',amount:-299.00,category:'fitness',method:'הוראת קבע',time:'06:30'},
+      {id:id++,merchant:'IKEA',amount:-640.00,category:'home',method:'כרטיס אשראי',time:'11:00'},
+      {id:id++,merchant:'Spotify',amount:-19.90,category:'tech',method:'כרטיס אשראי',time:'00:00'},
+      {id:id++,merchant:'רמי לוי',amount:-210.40,category:'food',method:'מזומן',time:'17:20'},
+      {id:id++,merchant:'Amazon',amount:-185.00,category:'shopping',method:'כרטיס אשראי',time:'15:12',oa:49.99,oc:'USD'},
+      {id:id++,merchant:'סינמה סיטי',amount:-96.00,category:'entertainment',method:'מזומן',time:'21:00'},
+      {id:id++,merchant:'בזק',amount:-129.00,category:'bills',method:'הוראת קבע',time:'08:00'},
+      {id:id++,merchant:'Booking.com',amount:-480.00,category:'travel',method:'כרטיס אשראי',time:'12:40',oa:120,oc:'EUR'},
+      {id:id++,merchant:'משכורת',amount:12500.00,category:'income',method:'העברה בנקאית',time:'09:00'}
+    ];
+    this.state={
+      screen:'app',tab:'home',curY:2026,curM:6,catF:'all',q:'',editId:null,vw:1200,
+      aMerchant:'',aAmount:'',aMethod:'כרטיס אשראי',aCat:'',aDate:'2026-06-18',aNotes:'',
+      eMerchant:'',eAmount:'',eCat:'other',
+      lEmail:'',lPwd:'',rEmail:'',rPwd:'',
+      toast:{msg:'',color:'#2FB876',show:false}
+    };
+    this._t=null;
+    this._onResize=()=>this.setState({vw:window.innerWidth});
+  }
+  componentDidMount(){this._onResize();window.addEventListener('resize',this._onResize);}
+  componentWillUnmount(){window.removeEventListener('resize',this._onResize);clearTimeout(this._t);}
+  fmt(n){const c=this.props.showCents??true;return '₪'+Math.abs(n).toLocaleString('he-IL',{minimumFractionDigits:c?2:0,maximumFractionDigits:c?2:0});}
+  autocat(m){for(const [re,c] of this.RULES) if(re.test(m||'')) return c;return 'other';}
+  upd=(k)=>(e)=>this.setState({[k]:e.target.value});
+  goApp=()=>this.setState({screen:'app',tab:'home'});
+  goLogin=()=>this.setState({screen:'login'});
+  goRegister=()=>this.setState({screen:'register'});
+  setTab=(tab)=>{this.setState({tab});try{window.scrollTo(0,0);}catch(e){}};
+  goAdd=()=>this.setTab('add');
+  goTxns=()=>this.setTab('txns');
+  toast=(msg,color='#2FB876')=>{this.setState({toast:{msg,color,show:true}});clearTimeout(this._t);this._t=setTimeout(()=>this.setState(s=>({toast:{...s.toast,show:false}})),2600);};
+  changeMonth=(d)=>{let m=this.state.curM+d,y=this.state.curY;if(m>12){m=1;y++;}if(m<1){m=12;y--;}this.setState({curM:m,curY:y});};
+  goToday=()=>this.setState({curY:2026,curM:6});
+  setCatF=(k)=>this.setState({catF:k});
+  stop=(e)=>e.stopPropagation();
+  openEdit=(id)=>{const t=this.TX.find(x=>x.id===id);if(t)this.setState({editId:id,eMerchant:t.merchant,eAmount:String(Math.abs(t.amount)),eCat:t.category});};
+  closeEdit=()=>this.setState({editId:null});
+  saveEdit=()=>{const t=this.TX.find(x=>x.id===this.state.editId);if(t){t.merchant=this.state.eMerchant;t.amount=-Math.abs(parseFloat(this.state.eAmount)||0);t.category=this.state.eCat;}this.setState({editId:null});this.toast('✓ העסקה עודכנה');};
+  delEdit=()=>{this.TX=this.TX.filter(x=>x.id!==this.state.editId);this.setState({editId:null});this.toast('🗑️ העסקה נמחקה','#E05260');};
+  doAdd=()=>{const m=this.state.aMerchant.trim();const amt=parseFloat(this.state.aAmount);if(!m||!amt||isNaN(amt)){this.toast('מלא שם עסק וסכום','#E05260');return;}const cat=this.state.aCat||this.autocat(m);this.TX.unshift({id:Date.now(),merchant:m,amount:-Math.abs(amt),category:cat,method:this.state.aMethod,time:new Date().toTimeString().slice(0,5),notes:this.state.aNotes||null});this.setState({aMerchant:'',aAmount:'',aNotes:'',aCat:'',tab:'home'});this.toast('✓ נשמר: '+m);};
+
+  renderVals(){
+    const S=this.state;
+    const cat=(k)=>this.CATS[k]||this.CATS.other;
+    const fmt=(n)=>this.fmt(n);
+    const exp=this.TX.filter(t=>t.amount<0);
+    const spent=exp.reduce((s,t)=>s+Math.abs(t.amount),0);
+    const avg=exp.length?spent/exp.length:0;
+    const catCount=new Set(exp.map(t=>t.category)).size;
+    const fmtTx=(t)=>{const c=cat(t.category);const pos=t.amount>0;const fg=t.oc&&t.oc!=='ILS'&&t.oa!=null;return{
+      id:t.id,emoji:c.emoji,iconBg:c.color+'22',name:t.merchant,
+      meta:(t.time||'')+(t.method?(' · '+t.method):''),
+      amtStr:(pos?'+':'−')+fmt(t.amount),amtColor:pos?'#2FB876':'#3A2A2E',
+      catLabel:c.label,catColor:c.color,catBg:c.color+'1F',
+      hasForeign:!!fg,
+      foreignStr:fg?((this.FX[t.oc]||t.oc+' ')+Math.abs(t.oa).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})):'',
+      onClick:()=>this.openEdit(t.id)
+    };};
+    const recentTx=this.TX.slice(0,6).map(fmtTx);
+    const byCat={};exp.forEach(t=>{const k=t.category||'other';byCat[k]=(byCat[k]||0)+Math.abs(t.amount);});
+    const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+    const barMax=sorted[0]?sorted[0][1]:1;
+    const catBars=sorted.slice(0,6).map(([k,v])=>{const c=cat(k);return{label:c.label,emoji:c.emoji,color:c.color,valueStr:fmt(v),pct:Math.round(v/barMax*100)};});
+    const uniq=this.CAT_ORDER.filter(k=>this.TX.some(t=>t.category===k));
+    const chips=[{key:'all',label:'הכל',color:'#FF5C7E',active:S.catF==='all',onClick:()=>this.setCatF('all')}].concat(uniq.map(k=>{const c=cat(k);return{key:k,label:c.label,color:c.color,active:S.catF===k,onClick:()=>this.setCatF(k)};}));
+    chips.forEach(ch=>{ch.bg=ch.active?ch.color:'#fff';ch.fg=ch.active?'#fff':'#8A7075';ch.border=ch.active?ch.color:'rgba(58,42,46,0.12)';});
+    let list=this.TX;
+    if(S.catF!=='all')list=list.filter(t=>t.category===S.catF);
+    const q=S.q.trim().toLowerCase();
+    if(q)list=list.filter(t=>(t.merchant||'').toLowerCase().includes(q));
+    const filteredTx=list.map(fmtTx);
+    const fSpent=list.filter(t=>t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0);
+    const mv=[3120,4250,2980,3890,4420,spent];
+    const ml=['ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני'];
+    const mmax=Math.max(...mv);
+    const months=mv.map((v,i)=>({label:ml[i],valueStr:'₪'+(Math.round(v/100)/10)+'k',pct:Math.round(v/mmax*84),barBg:i===mv.length-1?'linear-gradient(180deg,#FF7E4F,#FF45A0)':'#FFC7B0'}));
+    const C=2*Math.PI*70;
+    const top=sorted.slice(0,8);
+    const topSum=top.reduce((s,[,v])=>s+v,0);
+    const rest=spent-topSum;
+    const segs=top.map(([k,v])=>({v,c:cat(k)}));
+    if(rest>0.5)segs.push({v:rest,c:this.CATS.other});
+    let cum=0;
+    const donut=segs.map(s=>{const seg=spent?s.v/spent*C:0;const o={color:s.c.color,dash:seg.toFixed(2)+' '+(C-seg).toFixed(2),offset:(-cum).toFixed(2)};cum+=seg;return o;});
+    const donutLegend=segs.map(s=>({color:s.c.color,label:s.c.label,pct:Math.round(spent?s.v/spent*100:0)}));
+    const byM={};exp.forEach(t=>{const m=t.method||'אחר';byM[m]=(byM[m]||0)+1;});
+    const mEnt=Object.entries(byM).sort((a,b)=>b[1]-a[1]);
+    const mMaxC=mEnt[0]?mEnt[0][1]:1;
+    const pal=['linear-gradient(90deg,#FF7E4F,#FF45A0)','#FFA07A','#FFC4A6','#FFDAC6'];
+    const methods=mEnt.map(([label,c],i)=>({label,countStr:c+' עסקאות',pct:Math.round(c/mMaxC*100),color:pal[i]||'#FFE3D6'}));
+    const effCat=S.aCat||this.autocat(S.aMerchant)||'other';
+    const pc=cat(effCat);
+    const pa=parseFloat(S.aAmount)||0;
+    const userEmail=this.props.userEmail??'demo@kaspon.app';
+    const editTx=S.editId!=null?this.TX.find(t=>t.id===S.editId):null;
+    const ec=editTx?cat(editTx.category):this.CATS.other;
+    const navItems=[['home','בית','בית','🏠'],['txns','עסקאות','עסקאות','🧾'],['analytics','אנליטיקה','ניתוח','📊'],['add','הוספת עסקה','הוסף','➕'],['settings','הגדרות','הגדרות','⚙️']].map(([k,label,bnLabel,icon])=>{const a=S.tab===k;return{key:k,label,bnLabel,icon,onClick:()=>this.setTab(k),bg:a?'linear-gradient(135deg,#FF7E4F,#FF45A0)':'transparent',color:a?'#fff':'#7A6065',shadow:a?'0 10px 22px rgba(255,77,141,0.30)':'none',bnColor:a?'#FF4D8D':'#BCA7AA'};});
+    // responsive layout
+    const vw=S.vw||1200;
+    const sidebar=vw>=960;
+    const mobile=vw<640;
+    return {
+      isLogin:S.screen==='login',isRegister:S.screen==='register',isApp:S.screen==='app',
+      tHome:S.tab==='home',tTxns:S.tab==='txns',tAnalytics:S.tab==='analytics',tAdd:S.tab==='add',tSettings:S.tab==='settings',
+      monthLabel:this.MHE[S.curM-1]+' '+S.curY,
+      spentStr:fmt(spent),cntStr:String(this.TX.length),catCountStr:String(catCount),avgStr:fmt(avg),
+      navItems,recentTx,catBars,
+      chips,filteredTx,txnsEmpty:filteredTx.length===0,
+      txnsCountStr:filteredTx.length+' עסקאות',txnsSpentStr:'סך הוצאה '+fmt(fSpent),
+      q:S.q,setQ:this.upd('q'),
+      months,donut,donutLegend,donutTotalStr:fmt(spent),methods,
+      aMerchant:S.aMerchant,aAmount:S.aAmount,aMethod:S.aMethod,aCat:S.aCat,aDate:S.aDate,aNotes:S.aNotes,
+      setMerchant:this.upd('aMerchant'),setAmount:this.upd('aAmount'),setMethod:this.upd('aMethod'),setCat:this.upd('aCat'),setDate:this.upd('aDate'),setNotes:this.upd('aNotes'),
+      doAdd:this.doAdd,
+      pvName:S.aMerchant||'שם בית העסק',pvEmoji:pc.emoji,pvAmtStr:fmt(pa),pvCatLabel:pc.label,
+      catOptions:this.CAT_ORDER.map(k=>({key:k,label:this.CATS[k].label})),
+      lEmail:S.lEmail,lPwd:S.lPwd,setLEmail:this.upd('lEmail'),setLPwd:this.upd('lPwd'),
+      rEmail:S.rEmail,rPwd:S.rPwd,setREmail:this.upd('rEmail'),setRPwd:this.upd('rPwd'),
+      goApp:this.goApp,goLogin:this.goLogin,goRegister:this.goRegister,goAdd:this.goAdd,goTxns:this.goTxns,
+      changePrev:()=>this.changeMonth(1),changeNext:()=>this.changeMonth(-1),goToday:this.goToday,
+      userEmail,userInitial:(userEmail[0]||'D').toUpperCase(),
+      doExport:()=>this.toast('✓ הקובץ יוצא (CSV)'),doSignout:this.goLogin,doRecat:()=>this.toast('✓ כל העסקאות סווגו מחדש'),
+      hasEdit:!!editTx,eMerchant:S.eMerchant,eAmount:S.eAmount,eCat:S.eCat,
+      setEMerchant:this.upd('eMerchant'),setEAmount:this.upd('eAmount'),setECat:this.upd('eCat'),
+      editEmoji:ec.emoji,editBg:ec.color+'22',
+      saveEdit:this.saveEdit,delEdit:this.delEdit,closeEdit:this.closeEdit,stop:this.stop,
+      toastShow:S.toast.show,toastMsg:S.toast.msg,toastColor:S.toast.color,
+      sidebarDisplay:sidebar?'flex':'none',topbarDisplay:sidebar?'none':'flex',bottomNavDisplay:sidebar?'none':'flex',
+      mainPad:sidebar?'42px 50px 60px':(mobile?'20px 16px 110px':'30px 30px 110px'),
+      heroPad:mobile?'26px 22px':'38px 40px',heroDir:mobile?'column':'row',heroAlign:mobile?'stretch':'center',
+      heroAmtSize:mobile?'42px':(vw<960?'52px':'62px'),
+      h1Size:mobile?'30px':'40px',titleSize:mobile?'29px':'38px',
+      statsWidth:mobile?'100%':'auto',statPad:mobile?'0 10px':'0 22px',statValSize:mobile?'20px':'25px'
+    };
+  }
+}
+</script>
 </body>
 </html>
