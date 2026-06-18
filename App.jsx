@@ -686,7 +686,7 @@ function Dashboard({ user, txAll, monthLabel, changeMonth, goToday, reload, show
   const setTab = name => { setTabState(name); window.scrollTo(0, 0); };
   async function lockApp() { await sb.auth.signOut(); }
   return (
-    <div className="page active">
+    <div className="page active" id="page-app">
       <aside className="sidebar">
         <div className="brand">
           <div className="mark">₪</div>
@@ -811,4 +811,5 @@ function App() {
 }
 
 export default App;
+
 
