@@ -677,8 +677,8 @@ function Toast({ toast }) {
   return <div className={'toast' + (toast.show ? ' show' : '')} style={{ background: toast.color }}>{toast.msg}</div>;
 }
 
-const NAV = [['home', 'בית'], ['txns', 'עסקאות'], ['analytics', 'אנליטיקה'], ['add', 'הוספת עסקה'], ['settings', 'הגדרות']];
-const BNAV = [['home', 'בית'], ['txns', 'עסקאות'], ['analytics', 'ניתוח'], ['add', 'הוסף'], ['settings', 'הגדרות']];
+const NAV = [['home', 'בית', '🏠'], ['txns', 'עסקאות', '🧾'], ['analytics', 'אנליטיקה', '📊'], ['add', 'הוספת עסקה', '➕'], ['settings', 'הגדרות', '⚙️']];
+const BNAV = [['home', 'בית', '🏠'], ['txns', 'עסקאות', '🧾'], ['analytics', 'ניתוח', '📊'], ['add', 'הוסף', '➕'], ['settings', 'הגדרות', '⚙️']];
 
 function Dashboard({ user, txAll, monthLabel, changeMonth, goToday, reload, showToast }) {
   const [tab, setTabState] = useState('home');
@@ -693,8 +693,8 @@ function Dashboard({ user, txAll, monthLabel, changeMonth, goToday, reload, show
           <div><div className="name">כספון</div><div className="tag">Premium</div></div>
         </div>
         <nav className="sidenav">
-          {NAV.map(([k, label]) => (
-            <button key={k} className={'tab' + (tab === k ? ' active' : '')} onClick={() => setTab(k)}><span className="nd"></span>{label}</button>
+          {NAV.map(([k, label, ico]) => (
+            <button key={k} className={'tab' + (tab === k ? ' active' : '')} onClick={() => setTab(k)}><span className="tab-ico">{ico}</span>{label}</button>
           ))}
         </nav>
         <div className="spacer"></div>
@@ -716,8 +716,8 @@ function Dashboard({ user, txAll, monthLabel, changeMonth, goToday, reload, show
       </main>
 
       <nav className="bnav">
-        {BNAV.map(([k, label]) => (
-          <button key={k} className={'bi' + (tab === k ? ' active' : '')} onClick={() => setTab(k)}><span className="ico"></span>{label}</button>
+        {BNAV.map(([k, label, ico]) => (
+          <button key={k} className={'bi' + (tab === k ? ' active' : '')} onClick={() => setTab(k)}><span className="ico">{ico}</span>{label}</button>
         ))}
       </nav>
 
@@ -811,5 +811,6 @@ function App() {
 }
 
 export default App;
+
 
 
