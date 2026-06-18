@@ -1,12 +1,13 @@
 :root{
-  --bg:#ECE7DB; --surface:#FBF9F3; --surface2:#F1ECE1; --inset:#ECE7DB;
-  --ink:#1C1A14; --ink2:#52503F; --muted:#6E695B; --faint:#A7A192;
-  --line:rgba(28,26,20,0.09); --line2:rgba(28,26,20,0.14);
-  --accent:#2F4A39; --accent-d:#26402F; --accent-tint:rgba(47,74,57,0.10);
-  --gold:#8A6A39; --red:#A24B57;
-  --r-sm:12px; --r:16px; --r-lg:20px; --r-xl:26px;
-  --font:'Heebo',-apple-system,BlinkMacSystemFont,sans-serif;
-  --serif:'Frank Ruhl Libre',Georgia,serif;
+  --bg:#FFF4EC; --surface:#FFFFFF; --surface2:#FFF0E8; --inset:#FFF7F3;
+  --ink:#3A2A2E; --ink2:#6E565B; --muted:#A08A8E; --faint:#BCA7AA;
+  --line:rgba(58,42,46,0.10); --line2:rgba(58,42,46,0.14);
+  --accent:#FF5C7E; --accent-d:#E05260; --accent-tint:rgba(255,92,126,0.12);
+  --gold:#FF7E4F; --red:#E0526A; --green:#2FB876;
+  --grad:linear-gradient(135deg,#FF7E4F,#FF45A0);
+  --r-sm:12px; --r:14px; --r-lg:18px; --r-xl:24px;
+  --font:'Rubik',-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:'Rubik',-apple-system,BlinkMacSystemFont,sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{height:100%;-webkit-text-size-adjust:100%;}
@@ -334,3 +335,39 @@ input,select{font-family:var(--font);}
 .bnav .bi{min-width:56px;min-height:52px;justify-content:center;}
 
 [hidden]{display:none !important;}
+
+/* ════════════ עיצוב כתום/ורוד — Kaspon Premium ════════════ */
+/* גרדיאנט החתימה על אלמנטים מרכזיים */
+.btn-primary,.btn-save{background:var(--grad);color:#fff;border:none;box-shadow:0 12px 26px rgba(255,77,141,0.28);}
+.btn-primary:hover,.btn-save:hover{filter:brightness(1.05);box-shadow:0 16px 32px rgba(255,77,141,0.34);transform:translateY(-1px);}
+.auth-icon,.brand .mark,.user-chip .av{background:var(--grad);color:#fff;}
+.auth-icon{box-shadow:0 18px 42px rgba(255,77,141,0.30);}
+/* ניווט צד */
+.tab .nd{background:#E9CDD2;}
+.tab.active{background:var(--grad);color:#fff;box-shadow:0 8px 20px rgba(255,77,141,0.22);}
+.tab.active .nd{background:rgba(255,255,255,0.92);}
+.tab-ico{font-size:17px;line-height:1;width:22px;text-align:center;flex-shrink:0;}
+.bi .ico{font-size:19px;width:auto;height:auto;background:none;border-radius:0;}
+.side-add{border:1px dashed rgba(255,92,126,0.45);background:rgba(255,92,126,0.08);color:var(--accent);}
+.side-add:hover{background:rgba(255,92,126,0.14);}
+/* תג PREMIUM בכתום */
+.brand .tag{color:#FF7E4F;font-weight:800;letter-spacing:1.5px;}
+/* פילטרים פעילים */
+.fc.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+/* סכומים: הכנסה בירוק */
+.txamt.pos{color:var(--green);}
+.dot.ok{background:var(--green);box-shadow:0 0 8px rgba(47,184,118,0.5);}
+/* טוסט */
+.toast{color:#fff;background:var(--grad);box-shadow:0 12px 30px rgba(255,77,141,0.30);}
+/* כרטיס המאזן — גרדיאנט החתימה עם טקסט לבן */
+.hero-card{background:var(--grad);border:none;color:#fff;box-shadow:0 18px 42px rgba(255,77,141,0.26);}
+.hero-card::before{background:radial-gradient(circle,rgba(255,255,255,0.20) 0%,transparent 68%);}
+.hero-card .hero-label{color:rgba(255,255,255,0.82);}
+.hero-card .hero-amount{color:#fff;}
+.hero-card .hero-stat-label{color:rgba(255,255,255,0.72);}
+.hero-card .hero-stat-val{color:#fff;}
+.hero-card .hero-stat{border-color:rgba(255,255,255,0.22);}
+/* כרטיסים לבנים — צל רך */
+.card,.stat-card,.auth-card{box-shadow:0 1px 3px rgba(58,42,46,0.04),0 10px 28px rgba(58,42,46,0.05);}
+/* פוקוס ורוד על שדות */
+.fi:focus,.fs:focus,.field input:focus,.search-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint);}
