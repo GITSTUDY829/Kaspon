@@ -371,3 +371,49 @@ input,select{font-family:var(--font);}
 .card,.stat-card,.auth-card{box-shadow:0 1px 3px rgba(58,42,46,0.04),0 10px 28px rgba(58,42,46,0.05);}
 /* פוקוס ורוד על שדות */
 .fi:focus,.fs:focus,.field input:focus,.search-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint);}
+
+/* ════════════════════ AI ASSISTANT TAB ════════════════════ */
+.ai-wrap{max-width:760px;}
+.ai-card{position:relative;}
+.ai-card-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+.ai-card-sub{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.5;}
+.ai-btn{background:var(--grad);color:#fff;border:none;border-radius:12px;font-family:var(--font);
+  font-size:14px;font-weight:700;padding:11px 18px;cursor:pointer;white-space:nowrap;
+  box-shadow:0 8px 20px rgba(255,77,141,0.26);transition:transform .15s,box-shadow .15s,filter .15s;}
+.ai-btn:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.05);box-shadow:0 12px 26px rgba(255,77,141,0.32);}
+.ai-btn:disabled{opacity:.55;cursor:default;box-shadow:none;}
+.ai-btn.ghost{background:rgba(255,92,126,0.10);color:var(--accent);box-shadow:none;border:1px solid rgba(255,92,126,0.30);}
+.ai-btn.ghost:hover:not(:disabled){background:rgba(255,92,126,0.16);}
+/* תובנות */
+.ai-insights{margin-top:16px;padding-top:16px;border-top:1px solid var(--line);}
+.ai-text .ai-line{font-size:14.5px;color:var(--ink);line-height:1.7;margin-bottom:7px;}
+.ai-text .ai-line.bullet{position:relative;padding-inline-start:22px;}
+.ai-text .ai-line.bullet::before{content:'';position:absolute;inset-inline-start:4px;top:9px;width:7px;height:7px;border-radius:50%;background:var(--grad);}
+/* סיווג חכם */
+.ai-sugg{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);}
+.ai-sugg-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
+.ai-sugg-row:last-of-type{border-bottom:none;}
+.ai-sugg-merchant{flex:1;font-size:14px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ai-sugg-arrow{color:var(--faint);font-size:15px;}
+.ai-sugg-cat{font-size:12.5px;font-weight:700;padding:4px 11px;border-radius:20px;white-space:nowrap;}
+/* צ'אט */
+.ai-chat{background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:14px;
+  min-height:160px;max-height:380px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:12px;}
+.ai-bubble{max-width:85%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.6;word-break:break-word;}
+.ai-bubble.user{align-self:flex-start;background:var(--grad);color:#fff;border-bottom-inline-start:4px;}
+.ai-bubble.ai{align-self:flex-end;background:#fff;color:var(--ink);border:1px solid var(--line);}
+.ai-bubble.ai .ai-line{margin-bottom:5px;}
+.ai-bubble.typing{color:var(--muted);font-style:italic;}
+.ai-empty{text-align:center;color:var(--faint);font-size:13.5px;padding:28px 16px;margin:auto;}
+.ai-input-row{display:flex;gap:8px;align-items:center;}
+.ai-input{flex:1;padding:13px 15px;background:#fff;border:1px solid var(--line2);border-radius:12px;
+  color:var(--ink);font-family:var(--font);font-size:14.5px;outline:none;transition:border-color .15s,box-shadow .15s;}
+.ai-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint);}
+.ai-send{width:46px;height:46px;flex-shrink:0;border:none;border-radius:12px;background:var(--grad);
+  color:#fff;font-size:20px;font-weight:800;cursor:pointer;box-shadow:0 6px 16px rgba(255,77,141,0.28);transition:transform .15s,filter .15s;}
+.ai-send:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.05);}
+.ai-send:disabled{opacity:.5;cursor:default;box-shadow:none;}
+/* ניווט תחתון — להכיל 6 פריטים בנוחות */
+.bnav{gap:0;}
+.bnav .bi{flex:1;min-width:0;padding-inline:3px;font-size:10px;}
+@media (max-width:380px){ .bnav .bi{font-size:9px;} .bi .ico{font-size:17px;} }
