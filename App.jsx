@@ -677,8 +677,131 @@ function Toast({ toast }) {
   return <div className={'toast' + (toast.show ? ' show' : '')} style={{ background: toast.color }}>{toast.msg}</div>;
 }
 
-const NAV = [['home', 'בית', '🏠'], ['txns', 'עסקאות', '🧾'], ['analytics', 'אנליטיקה', '📊'], ['add', 'הוספת עסקה', '➕'], ['settings', 'הגדרות', '⚙️']];
-const BNAV = [['home', 'בית', '🏠'], ['txns', 'עסקאות', '🧾'], ['analytics', 'ניתוח', '📊'], ['add', 'הוסף', '➕'], ['settings', 'הגדרות', '⚙️']];
+/* ════════════════════ AI ASSISTANT TAB ════════════════════ */
+const AI_ERR_RED = '#E0526A';
+function aiErr(e) {
+  const m = (e && e.message) || '';
+  if (/ANTHROPIC|הוגדר|not configured/i.test(m)) return 'עוזר ה-AI עדיין לא הוגדר. צריך לפרוס את ה-Edge Function ולהגדיר מפתח API (ראה המדריך).';
+  if (/Failed to fetch|NetworkError|not found|404|non-2xx/i.test(m)) return 'לא הצלחתי להתחבר לעוזר ה-AI. ודא שה-Edge Function בשם ai-assistant פרוס.';
+  if (/Unauthorized|401|JWT/i.test(m)) return 'נדרשת התחברות מחדש — צא והיכנס שוב.';
+  return m || 'משהו השתבש. נסה שוב.';
+}
+async function aiCall(action, extra = {}) {
+  const { data, error } = await sb.functions.invoke('ai-assistant', { body: { action, ...extra } });
+  if (error) {
+    let msg = error.message;
+    try { const j = await error.context.json(); if (j && j.error) msg = j.error; } catch (_) {}
+    throw new Error(msg);
+  }
+  if (data && data.error) throw new Error(data.error);
+  return data || {};
+}
+function AiText({ text }) {
+  return (
+    <div className="ai-text">
+      {String(text).split('\n').map((line, i) => {
+        const t = line.trim();
+        if (!t) return null;
+        const bullet = t.startsWith('•') || t.startsWith('-') || t.startsWith('*');
+        return <div key={i} className={bullet ? 'ai-line bullet' : 'ai-line'}>{bullet ? t.replace(/^[•\-*]\s*/, '') : t}</div>;
+      })}
+    </div>
+  );
+}
+function AiTab({ txAll, reload, showToast }) {
+  const [busy, setBusy] = useState('');
+  const [insights, setInsights] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [sugg, setSugg] = useState(null);
+  const chatEnd = useRef(null);
+  useEffect(() => { if (chatEnd.current) chatEnd.current.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  async function getInsights() {
+    setBusy('insights'); setInsights('');
+    try { const d = await aiCall('insights'); setInsights(d.text || ''); }
+    catch (e) { showToast(aiErr(e), AI_ERR_RED); }
+    setBusy('');
+  }
+  async function send() {
+    const q = input.trim();
+    if (!q || busy) return;
+    setInput(''); setMessages(m => [...m, { role: 'user', text: q }]); setBusy('chat');
+    try { const d = await aiCall('chat', { message: q }); setMessages(m => [...m, { role: 'ai', text: d.text || '' }]); }
+    catch (e) { setMessages(m => [...m, { role: 'ai', text: aiErr(e) }]); }
+    setBusy('');
+  }
+  async function categorize() {
+    setBusy('cat'); setSugg(null);
+    try { const d = await aiCall('categorize'); setSugg(d.suggestions || []); if (d.text) showToast(d.text); }
+    catch (e) { showToast(aiErr(e), AI_ERR_RED); }
+    setBusy('');
+  }
+  async function applyAll() {
+    if (!sugg || !sugg.length) return;
+    setBusy('cat'); let n = 0;
+    for (const s of sugg) {
+      const { error } = await sb.from('transactions').update({ category: s.category }).eq('merchant', s.merchant).eq('category', 'other');
+      if (!error) n++;
+    }
+    setBusy(''); setSugg(null);
+    showToast('✓ סווגו ' + n + ' בתי עסק'); reload();
+  }
+  const uncatCount = txAll.filter(t => (t.category || 'other') === 'other').length;
+
+  return (
+    <div className="ai-wrap">
+      <div className="page-title">✨ עוזר AI</div>
+      <p className="page-sub">בינה מלאכותית שמבינה את ההוצאות שלך — מבוסס Claude</p>
+
+      <div className="card ai-card mb18">
+        <div className="ai-card-head">
+          <div><div className="sec-title">תובנות חכמות</div><div className="ai-card-sub">ניתוח דפוסי ההוצאה ובתי העסק שלך</div></div>
+          <button className="ai-btn" onClick={getInsights} disabled={!!busy}>{busy === 'insights' ? '✨ מנתח…' : '✨ נתח את ההוצאות שלי'}</button>
+        </div>
+        {insights && <div className="ai-insights"><AiText text={insights} /></div>}
+      </div>
+
+      <div className="card ai-card mb18">
+        <div className="ai-card-head">
+          <div><div className="sec-title">סיווג חכם</div><div className="ai-card-sub">{uncatCount > 0 ? uncatCount + ' עסקאות בקטגוריית "אחר" — ה-AI יסווג אותן' : 'כל העסקאות מסווגות 👌'}</div></div>
+          <button className="ai-btn ghost" onClick={categorize} disabled={!!busy || uncatCount === 0}>{busy === 'cat' ? '🏷️ עובד…' : '🏷️ סווג עם AI'}</button>
+        </div>
+        {sugg && sugg.length > 0 && (
+          <div className="ai-sugg">
+            {sugg.map((s, i) => (
+              <div key={i} className="ai-sugg-row">
+                <span className="ai-sugg-merchant">{s.merchant}</span>
+                <span className="ai-sugg-arrow">←</span>
+                <span className="ai-sugg-cat" style={{ background: ((CATS[s.category] || {}).color || '#999') + '22', color: (CATS[s.category] || {}).color || '#999' }}>{s.label}</span>
+              </div>
+            ))}
+            <button className="ai-btn" style={{ marginTop: 12, width: '100%' }} onClick={applyAll} disabled={!!busy}>החל את כל הסיווגים</button>
+          </div>
+        )}
+        {sugg && sugg.length === 0 && <div className="ai-empty">אין כרגע עסקאות לסיווג.</div>}
+      </div>
+
+      <div className="card ai-card">
+        <div className="sec-title" style={{ marginBottom: 4 }}>שאל אותי על הכסף שלך</div>
+        <div className="ai-card-sub" style={{ marginBottom: 14 }}>לדוגמה: "כמה הוצאתי על מסעדות?", "איפה אני הכי מבזבז?"</div>
+        <div className="ai-chat">
+          {messages.length === 0 && <div className="ai-empty">התחל שיחה — שאל כל שאלה על ההוצאות שלך</div>}
+          {messages.map((m, i) => (<div key={i} className={'ai-bubble ' + m.role}>{m.role === 'ai' ? <AiText text={m.text} /> : m.text}</div>))}
+          {busy === 'chat' && <div className="ai-bubble ai typing">✨ חושב…</div>}
+          <div ref={chatEnd} />
+        </div>
+        <div className="ai-input-row">
+          <input className="ai-input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') send(); }} placeholder="כתוב שאלה…" disabled={busy === 'chat'} />
+          <button className="ai-send" onClick={send} disabled={busy === 'chat' || !input.trim()}>↑</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const NAV = [['home', 'בית', '🏠'], ['txns', 'עסקאות', '🧾'], ['analytics', 'אנליטיקה', '📊'], ['ai', 'עוזר AI', '✨'], ['add', 'הוספת עסקה', '➕'], ['settings', 'הגדרות', '⚙️']];
+const BNAV = [['home', 'בית', '🏠'], ['txns', 'עסקאות', '🧾'], ['analytics', 'ניתוח', '📊'], ['ai', 'AI', '✨'], ['add', 'הוסף', '➕'], ['settings', 'הגדרות', '⚙️']];
 
 function Dashboard({ user, txAll, monthLabel, changeMonth, goToday, reload, showToast }) {
   const [tab, setTabState] = useState('home');
@@ -711,6 +834,7 @@ function Dashboard({ user, txAll, monthLabel, changeMonth, goToday, reload, show
         {tab === 'home' && <HomeTab txAll={txAll} monthLabel={monthLabel} changeMonth={changeMonth} goToday={goToday} onEdit={setEditTx} setTab={setTab} />}
         {tab === 'txns' && <TransactionsTab txAll={txAll} onEdit={setEditTx} />}
         {tab === 'analytics' && <AnalyticsTab />}
+        {tab === 'ai' && <AiTab txAll={txAll} reload={reload} showToast={showToast} />}
         {tab === 'add' && <AddTab reload={reload} showToast={showToast} setTab={setTab} />}
         {tab === 'settings' && <SettingsTab user={user} reload={reload} showToast={showToast} />}
       </main>
@@ -811,6 +935,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
