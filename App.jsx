@@ -319,9 +319,9 @@ function HomeTab({ txAll, monthLabel, changeMonth, goToday, onEdit, setTab }) {
           <h1>{monthLabel}</h1>
         </div>
         <div className="mnav-ctrls">
-          <button className="mbtn" onClick={() => changeMonth(1)}>‹</button>
+          <button className="mbtn" onClick={() => changeMonth(-1)}>‹</button>
           <button className="mtoday" onClick={goToday}>היום</button>
-          <button className="mbtn" onClick={() => changeMonth(-1)}>›</button>
+          <button className="mbtn" onClick={() => changeMonth(1)}>›</button>
         </div>
       </div>
 
