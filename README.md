@@ -8,7 +8,6 @@
 🔗 **אתר חי:** <span dir="ltr">https://kaspon.vercel.app/</span>
 💻 **קוד:** <span dir="ltr">https://github.com/GITSTUDY829/Kaspon</span>
 
-<!-- 📸 הוסף כאן צילום מסך: ![צילום מסך](screenshot.png) -->
 
 ---
 
