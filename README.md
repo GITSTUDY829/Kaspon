@@ -8,8 +8,9 @@
 🔗 **אתר חי:** <span dir="ltr">https://kaspon.vercel.app/</span>
 💻 **קוד:** <span dir="ltr">https://github.com/GITSTUDY829/Kaspon</span>
 
+<img width="865" height="375" alt="image" src="https://github.com/user-attachments/assets/e7eef6a6-7764-46d3-b752-b3784c2b266e" />
 
----
+
 
 ## 🎯 הבעיה שהמוצר פותר
 
