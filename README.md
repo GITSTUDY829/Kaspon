@@ -9,6 +9,10 @@
 💻 **קוד:** <span dir="ltr">https://github.com/GITSTUDY829/Kaspon</span>
 
 <img width="865" height="375" alt="image" src="https://github.com/user-attachments/assets/e7eef6a6-7764-46d3-b752-b3784c2b266e" />
+<img width="957" height="415" alt="image" src="https://github.com/user-attachments/assets/a831bed0-fb2e-458b-9fbc-b66d7c34ecee" />
+<img width="958" height="416" alt="image" src="https://github.com/user-attachments/assets/7cd41bc9-4ea8-45b9-ac22-a7b03f8abad8" />
+
+
 
 
 
