@@ -302,7 +302,9 @@ function HomeTab({ txAll, monthLabel, changeMonth, goToday, onEdit, setTab }) {
     const spent = exp.reduce((s, t) => s + Math.abs(t.amount), 0);
     const apCnt = exp.filter(t => t.method === 'Apple Pay').length;
     const avg = exp.length ? spent / exp.length : 0;
-    return { spent, apCnt, avg, cnt: txAll.length };
+    const refundTx = txAll.filter(t => t.amount > 0);
+    const refunds = refundTx.reduce((s, t) => s + t.amount, 0);
+    return { spent, apCnt, avg, cnt: txAll.length, refunds, refundCnt: refundTx.length };
   }, [txAll]);
   const recent = txAll.slice(0, 7);
   const catBars = useMemo(() => {
@@ -330,6 +332,12 @@ function HomeTab({ txAll, monthLabel, changeMonth, goToday, onEdit, setTab }) {
         <div className="hero-main">
           <div className="hero-label">סך הוצאות החודש</div>
           <div className="hero-amount">{fmt(stats.spent)}</div>
+          {stats.refunds > 0 && (
+            <div className="hero-refunds">
+              <span className="hr-plus">+{fmt(stats.refunds)}</span>
+              <span className="hr-label">זיכויים החודש{stats.refundCnt > 1 ? ' · ' + stats.refundCnt + ' עסקאות' : ''}</span>
+            </div>
+          )}
         </div>
         <div className="hero-row">
           <div className="hero-stat"><div className="hero-stat-label">עסקאות</div><div className="hero-stat-val">{stats.cnt}</div></div>
@@ -380,6 +388,7 @@ function TransactionsTab({ txAll, onEdit }) {
     return list;
   }, [txAll, catF, q]);
   const spent = items.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const refunds = items.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   return (
     <div className="tab-section active">
       <div className="page-title">עסקאות</div>
@@ -389,7 +398,7 @@ function TransactionsTab({ txAll, onEdit }) {
         <input type="text" value={q} onChange={e => setQ(e.target.value)} placeholder="חיפוש לפי שם עסק…" />
       </div>
       <FilterChips catF={catF} setCatF={setCatF} />
-      <div id="tx-summary">{items.length} עסקאות · סך הוצאה {fmt(spent)}</div>
+      <div id="tx-summary">{items.length} עסקאות · סך הוצאה {fmt(spent)}{refunds > 0 ? <span className="tx-sum-refund"> · זיכויים <span dir="ltr">+{fmt(refunds)}</span></span> : ''}</div>
       <div className="card">
         <div className="txl">
           {items.length ? items.map(t => <TxItem key={t.id} tx={t} onEdit={onEdit} />) : <Empty text="לא נמצאו עסקאות" />}
@@ -517,21 +526,38 @@ function normalizeRows(raw) {
   return out;
 }
 
-// סימון כפילויות מול עסקאות קיימות בטווח התאריכים (RLS מצמצם למשתמש)
+// סימון כפילויות + זיהוי "תיקון" (עסקה קיימת בסימן שגוי) מול עסקאות קיימות בטווח (RLS מצמצם למשתמש)
 async function flagDuplicates(rows) {
   if (!rows.length) return rows;
   const dates = rows.map(r => r.date).sort();
   const minD = dates[0], maxD = dates[dates.length - 1];
   let existing = [];
   try {
-    const { data } = await sb.from('transactions').select('merchant,amount,date').gte('date', minD).lte('date', maxD);
+    const { data } = await sb.from('transactions').select('id,merchant,amount,date').gte('date', minD).lte('date', maxD);
     existing = data || [];
   } catch (e) {}
   const key = (mer, amt, dt) => (mer || '').trim().toLowerCase() + '|' + Math.abs(+amt).toFixed(2) + '|' + dt;
-  const seen = new Set(existing.map(t => key(t.merchant, t.amount, t.date)));
+  // מפתח → רשימת עסקאות קיימות (id + סכום חתום)
+  const byKey = {};
+  existing.forEach(t => { const k = key(t.merchant, t.amount, t.date); (byKey[k] || (byKey[k] = [])).push({ id: t.id, amount: +t.amount }); });
+
   return rows.map(r => {
-    const dup = seen.has(key(r.merchant, r.amount, r.date));
-    return { ...r, dup, include: !dup };
+    const matches = byKey[key(r.merchant, r.amount, r.date)] || [];
+    let dup = false, fix = false, fixId = null, fixFrom = null;
+    if (matches.length) {
+      const newSigned = r.isRefund ? r.amount : -r.amount;
+      const exactDup = matches.find(m => (m.amount >= 0) === (newSigned >= 0)); // אותו סימן כלכלי = כבר קיים
+      if (exactDup) {
+        dup = true;
+      } else if (r.isRefund) {
+        const exp = matches.find(m => m.amount < 0); // הוצאה קיימת שאמורה להיות זיכוי
+        if (exp) { fix = true; fixId = exp.id; fixFrom = exp.amount; }
+        else { dup = true; }
+      } else {
+        dup = true; // אי-התאמת סימן אחרת — שמרני, מדלגים
+      }
+    }
+    return { ...r, dup, fix, fixId, fixFrom, include: !dup };
   });
 }
 
@@ -579,19 +605,27 @@ function ImportCard({ reload, showToast, setTab, goToMonth }) {
 function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMonth }) {
   const [rows, setRows] = useState(data.rows);
   const [busy, setBusy] = useState(false);
-  const included = rows.filter(r => r.include);
+  const sel = rows.filter(r => r.include);
+  const addN = sel.filter(r => !r.fix).length;
+  const fixN = sel.filter(r => r.fix).length;
   const dupCount = rows.filter(r => r.dup).length;
-  const total = included.reduce((s, r) => s + (r.isRefund ? 0 : r.amount), 0);
+  const total = sel.filter(r => !r.fix && !r.isRefund).reduce((s, r) => s + r.amount, 0);
 
   function toggle(i) { setRows(rs => rs.map((r, idx) => idx === i ? { ...r, include: !r.include } : r)); }
   function setCat(i, c) { setRows(rs => rs.map((r, idx) => idx === i ? { ...r, category: c } : r)); }
 
   async function addAll() {
-    if (!included.length) { showToast('לא נבחרו עסקאות להוספה', AI_ERR_RED); return; }
+    const chosen = rows.filter(r => r.include);
+    if (!chosen.length) { showToast('לא נבחרו עסקאות', AI_ERR_RED); return; }
     setBusy(true);
     const { data: { session } } = await sb.auth.getSession();
     const uid = session.user.id;
-    const payload = included.map(r => ({
+
+    const toInsert = chosen.filter(r => !r.fix);
+    const toFix = chosen.filter(r => r.fix && r.fixId);
+
+    // הוספות
+    const payload = toInsert.map(r => ({
       user_id: uid,
       merchant: r.merchant.slice(0, 200),
       amount: r.isRefund ? Math.abs(r.amount) : -Math.abs(r.amount),
@@ -606,18 +640,31 @@ function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMont
       source: 'import',
     }));
     let inserted = 0, failed = null;
-    for (let i = 0; i < payload.length; i += 200) {
+    for (let i = 0; i < payload.length && !failed; i += 200) {
       const slice = payload.slice(i, i + 200);
       const { error } = await sb.from('transactions').insert(slice);
-      if (error) { failed = error; break; }
-      inserted += slice.length;
+      if (error) failed = error; else inserted += slice.length;
     }
+
+    // תיקונים (עדכון עסקאות קיימות לזיכוי)
+    let fixed = 0;
+    for (const r of toFix) {
+      if (failed) break;
+      const { error } = await sb.from('transactions')
+        .update({ amount: Math.abs(r.amount), category: r.category || autocat(r.merchant) })
+        .eq('id', r.fixId);
+      if (error) failed = error; else fixed++;
+    }
+
     setBusy(false);
-    if (failed) { showToast('שגיאה בהוספה: ' + failed.message, AI_ERR_RED); return; }
+    if (failed) { showToast('שגיאה: ' + failed.message, AI_ERR_RED); return; }
     onClose();
-    showToast('✓ נוספו ' + inserted + ' עסקאות');
+    const parts = [];
+    if (inserted) parts.push('נוספו ' + inserted + ' עסקאות');
+    if (fixed) parts.push('תוקנו ' + fixed + ' זיכויים');
+    showToast('✓ ' + (parts.join(' · ') || 'בוצע'));
     const mc = {};
-    included.forEach(r => { const mk = r.date.slice(0, 7); mc[mk] = (mc[mk] || 0) + 1; });
+    chosen.forEach(r => { const mk = r.date.slice(0, 7); mc[mk] = (mc[mk] || 0) + 1; });
     const top = Object.entries(mc).sort((a, b) => b[1] - a[1])[0];
     if (top && goToMonth) { const p = top[0].split('-'); goToMonth(+p[0], +p[1]); }
     setTab('home');
@@ -631,9 +678,11 @@ function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMont
           <h3>✨ נמצאו {rows.length} עסקאות</h3>
           <div className="imp-fname" dir="ltr">{data.fileName}</div>
           <div className="imp-stats">
-            <div className="imp-stat"><b>{included.length}</b> ייתווספו</div>
+            <div className="imp-stat"><b>{addN}</b> ייתווספו</div>
+            {fixN > 0 && <div className="imp-stat"><b>{fixN}</b> יתוקנו</div>}
             <div className="imp-stat"><b>{fmt(total)}</b> סך חיובים</div>
           </div>
+          {fixN > 0 && <div className="imp-fixnote">🔧 {fixN} עסקאות קיימות שזוהו כזיכוי יעודכנו במקום — בלי כפילויות וללא צורך בתיקון ידני.</div>}
           {dupCount > 0 && <div className="imp-dupwarn">⚠ זוהו {dupCount} עסקאות שכבר קיימות — בוטלו אוטומטית כדי למנוע כפילויות. אפשר לסמן אותן ידנית אם תרצה.</div>}
         </div>
         <div className="imp-list">
@@ -641,8 +690,8 @@ function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMont
             <div key={i} className={'imp-row' + (r.include ? '' : ' off')}>
               <input className="imp-cb" type="checkbox" checked={r.include} onChange={() => toggle(i)} />
               <div className="imp-m">
-                <div className="imp-mn">{r.merchant}{r.dup && <span className="imp-dupb">קיים</span>}</div>
-                <div className="imp-md">{r.date}{r.origCurrency ? ' · ' + fmtForeign(r.origAmount, r.origCurrency) : ''}</div>
+                <div className="imp-mn">{r.merchant}{r.fix && <span className="imp-fixb">תיקון לזיכוי</span>}{r.dup && <span className="imp-dupb">קיים</span>}</div>
+                <div className="imp-md">{r.date}{r.origCurrency ? ' · ' + fmtForeign(r.origAmount, r.origCurrency) : ''}{r.fix && <span className="imp-was"> · היה <span dir="ltr">−{fmt(r.fixFrom)}</span></span>}</div>
               </div>
               <select className="imp-sel" value={r.category} onChange={e => setCat(i, e.target.value)}>
                 {CAT_ORDER.map(k => <option key={k} value={k}>{CATS[k].label}</option>)}
@@ -652,7 +701,7 @@ function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMont
           ))}
         </div>
         <div className="imp-ft">
-          <button className="btn-save" disabled={busy} onClick={addAll}>{busy ? 'מוסיף…' : 'הוסף ' + included.length + ' עסקאות'}</button>
+          <button className="btn-save" disabled={busy} onClick={addAll}>{busy ? 'שומר…' : (fixN > 0 ? 'הוסף ' + addN + ' · תקן ' + fixN : 'הוסף ' + addN + ' עסקאות')}</button>
           <button className="btn-ghost" disabled={busy} onClick={onClose}>ביטול</button>
         </div>
       </div>
@@ -667,6 +716,7 @@ function AddTab({ reload, showToast, setTab, goToMonth }) {
   const [cat, setCat] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
+  const [isRefund, setIsRefund] = useState(false);
   const [busy, setBusy] = useState(false);
   const effCat = cat || autocat(merchant || '');
   const c = CATS[effCat] || CATS.other;
@@ -677,13 +727,13 @@ function AddTab({ reload, showToast, setTab, goToMonth }) {
     setBusy(true);
     const { data: { session } } = await sb.auth.getSession();
     const { error } = await sb.from('transactions').insert({
-      user_id: session.user.id, merchant: m.slice(0, 200), amount: -Math.abs(amtNum), currency: 'ILS',
+      user_id: session.user.id, merchant: m.slice(0, 200), amount: isRefund ? Math.abs(amtNum) : -Math.abs(amtNum), currency: 'ILS',
       date: date || new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5),
       method, category: cat || autocat(m), notes: notes.slice(0, 500) || null, source: 'manual'
     });
     setBusy(false);
     if (error) { showToast('שגיאה: ' + error.message, '#A24B57'); return; }
-    setMerchant(''); setAmount(''); setNotes('');
+    setMerchant(''); setAmount(''); setNotes(''); setIsRefund(false);
     showToast('✓ נשמר: ' + m);
     setTab('home');
     reload();
@@ -716,6 +766,10 @@ function AddTab({ reload, showToast, setTab, goToMonth }) {
           </div>
           <div className="fg"><label className="fl">הערות</label>
             <input className="fi" type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="אופציונלי…" /></div>
+          <label className="refund-tg">
+            <input type="checkbox" checked={isRefund} onChange={e => setIsRefund(e.target.checked)} />
+            <span className="rt-txt">זיכוי / החזר <span className="rt-hint">(כסף שנכנס — לא ייספר בהוצאות)</span></span>
+          </label>
           <button className="btn-save" disabled={busy} onClick={addTx}>{busy ? 'שומר...' : 'שמור עסקה'}</button>
         </div>
         <div>
@@ -728,7 +782,7 @@ function AddTab({ reload, showToast, setTab, goToMonth }) {
                 <div style={{ fontSize: '12px', color: 'rgba(236,231,219,0.5)', marginTop: '3px' }}>{method}</div>
               </div>
             </div>
-            <div style={{ position: 'relative', fontFamily: 'var(--serif)', fontSize: '40px', fontWeight: 700, letterSpacing: '-1px', marginBottom: '10px' }}>−{fmt(amtNum || 0)}</div>
+            <div style={{ position: 'relative', fontFamily: 'var(--serif)', fontSize: '40px', fontWeight: 700, letterSpacing: '-1px', marginBottom: '10px', color: isRefund ? 'var(--green)' : undefined }}>{isRefund ? '+' : '−'}{fmt(amtNum || 0)}</div>
             <span style={{ position: 'relative', display: 'inline-block', fontSize: '11.5px', fontWeight: 700, color: c.color, background: c.color + '33', padding: '4px 11px', borderRadius: '20px' }}>{c.label}</span>
           </div>
         </div>
@@ -858,8 +912,10 @@ function EditModal({ tx, onClose, reload, showToast }) {
   const [amount, setAmount] = useState(Math.abs(tx.amount));
   const [cat, setCat] = useState(tx.category || 'other');
   const [notes, setNotes] = useState(tx.notes || '');
+  const [isRefund, setIsRefund] = useState(tx.amount > 0);
   async function save() {
-    const { error } = await sb.from('transactions').update({ merchant, amount: -Math.abs(+amount), category: cat, notes: notes || null }).eq('id', tx.id);
+    const signed = isRefund ? Math.abs(+amount) : -Math.abs(+amount);
+    const { error } = await sb.from('transactions').update({ merchant, amount: signed, category: cat, notes: notes || null }).eq('id', tx.id);
     if (error) { showToast('שגיאה', '#A24B57'); return; }
     onClose(); showToast('✓ עודכן'); reload();
   }
@@ -881,6 +937,10 @@ function EditModal({ tx, onClose, reload, showToast }) {
             </select></div>
         </div>
         <div className="fg"><label className="fl">הערות</label><input className="fi" type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="אופציונלי…" /></div>
+        <label className="refund-tg">
+          <input type="checkbox" checked={isRefund} onChange={e => setIsRefund(e.target.checked)} />
+          <span className="rt-txt">זיכוי / החזר <span className="rt-hint">(כסף שנכנס — לא ייספר בהוצאות)</span></span>
+        </label>
         <div className="modal-acts">
           <button className="btn-save" onClick={save}>שמור שינויים</button>
           <button className="btn-del" onClick={del}>מחק</button>
