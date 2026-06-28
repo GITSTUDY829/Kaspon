@@ -483,3 +483,38 @@ input,select{font-family:var(--font);}
   .imp-sel{max-width:104px;}
   .imp-row{gap:9px;}
 }
+
+/* ════════════════════ REFUNDS / CREDITS ════════════════════ */
+/* סך הזיכויים בכרטיס הראשי (רקע כהה) */
+.hero-refunds{
+  position:relative; display:inline-flex; align-items:center; gap:9px; margin-top:14px;
+  background:rgba(47,184,118,0.16); border:1px solid rgba(47,184,118,0.38);
+  padding:6px 14px; border-radius:30px;
+}
+.hr-plus{font-family:var(--serif); font-size:17px; font-weight:700; color:#5BD89E; direction:ltr; unicode-bidi:isolate;}
+.hr-label{font-size:12.5px; color:rgba(236,231,219,0.72); font-weight:500;}
+
+/* סך הזיכויים בשורת הסיכום בטאב העסקאות */
+.tx-sum-refund{color:var(--green); font-weight:600;}
+
+/* מתג זיכוי/החזר בטפסים (רקע בהיר) */
+.refund-tg{
+  display:flex; align-items:center; gap:11px; margin:4px 0 16px; padding:12px 14px;
+  background:var(--surface2); border:1px solid var(--line2); border-radius:var(--r); cursor:pointer;
+  user-select:none; transition:border-color .15s, background .15s;
+}
+.refund-tg:hover{border-color:rgba(47,184,118,0.4);}
+.refund-tg input{width:20px; height:20px; accent-color:var(--green); flex:0 0 auto; cursor:pointer;}
+.rt-txt{font-size:14px; font-weight:600; color:var(--ink);}
+.rt-hint{font-size:11.5px; font-weight:400; color:var(--muted);}
+
+/* תיקון זיכוי בתצוגה המקדימה של הייבוא */
+.imp-fixb{
+  font-size:10px; font-weight:700; color:#1f7a4d; background:rgba(47,184,118,0.16);
+  padding:2px 7px; border-radius:8px; margin-inline-start:7px;
+}
+.imp-was{color:var(--muted);}
+.imp-fixnote{
+  margin-top:12px; font-size:12.5px; color:#1f7a4d; background:rgba(47,184,118,0.10);
+  padding:9px 13px; border-radius:10px; line-height:1.55;
+}
