@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Chart from 'chart.js/auto';
+import * as XLSX from 'xlsx';
 import { sb, initClient, KASPON_URL, KASPON_KEY } from './supabaseClient.js';
 import { CATS, MHE, autocat } from './data.js';
 
@@ -443,7 +444,223 @@ function AnalyticsTab() {
   );
 }
 
-function AddTab({ reload, showToast, setTab }) {
+/* ════════════════════ IMPORT FROM FILE (CSV / EXCEL / PDF) ════════════════════ */
+
+// ArrayBuffer → base64 (להעלאת PDF)
+function bufToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  const CH = 0x8000;
+  for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  return btoa(bin);
+}
+
+// פענוח טקסט עם נפילה-לאחור לקידוד עברי (יצוא ישראלי הוא לרוב Windows-1255)
+function decodeText(buf) {
+  const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+  const bad = (utf8.match(/\uFFFD/g) || []).length;
+  if (bad > 2) { try { return new TextDecoder('windows-1255', { fatal: false }).decode(buf); } catch (e) {} }
+  return utf8;
+}
+
+// נרמול תאריך ל-YYYY-MM-DD עם אימות שזה תאריך אמיתי (רשת ביטחון; Claude מתבקש להחזיר ISO)
+function normDate(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  let y, mo, d, m;
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else {
+    m = s.match(/^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})/);
+    if (!m) return null;
+    d = +m[1]; mo = +m[2]; y = +m[3]; if (m[3].length === 2) y += 2000;
+  }
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 2000 || y > 2100) return null;
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  const p = n => String(n).padStart(2, '0');
+  return y + '-' + p(mo) + '-' + p(d);
+}
+
+// בניית ה-payload ל-Edge Function מתוך קובץ
+async function buildImportPayload(file) {
+  const name = (file.name || '').toLowerCase();
+  const buf = await file.arrayBuffer();
+  if (name.endsWith('.pdf') || file.type === 'application/pdf') {
+    return { fileBase64: bufToBase64(buf), mimeType: 'application/pdf' };
+  }
+  if (name.endsWith('.xlsx') || name.endsWith('.xls') || /sheet|excel/i.test(file.type)) {
+    const wb = XLSX.read(buf, { type: 'array' });
+    let text = '';
+    wb.SheetNames.forEach(sn => { text += XLSX.utils.sheet_to_csv(wb.Sheets[sn]) + '\n'; });
+    return { fileText: text.slice(0, 120000) };
+  }
+  return { fileText: decodeText(buf).slice(0, 120000) };
+}
+
+// אימות + נרמול של השורות ש-Claude החזיר
+function normalizeRows(raw) {
+  const out = [];
+  for (const r of (Array.isArray(raw) ? raw : [])) {
+    const merchant = String((r && r.merchant) || '').trim().slice(0, 200);
+    const amount = Math.abs(parseFloat(r && r.amount));
+    const date = normDate(r && r.date);
+    if (!merchant || !amount || isNaN(amount) || !date) continue;
+    const category = (r && CATS[r.category]) ? r.category : autocat(merchant);
+    const isRefund = !!(r && r.is_refund);
+    const currency = (String((r && r.currency) || 'ILS').toUpperCase().slice(0, 4)) || 'ILS';
+    const oa = (r && r.orig_amount != null && !isNaN(parseFloat(r.orig_amount))) ? Math.abs(parseFloat(r.orig_amount)) : null;
+    const oc = (r && r.orig_currency) ? String(r.orig_currency).toUpperCase().slice(0, 4) : null;
+    out.push({ merchant, amount, date, category, isRefund, currency, origAmount: oa, origCurrency: oc, include: true, dup: false });
+  }
+  out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  return out;
+}
+
+// סימון כפילויות מול עסקאות קיימות בטווח התאריכים (RLS מצמצם למשתמש)
+async function flagDuplicates(rows) {
+  if (!rows.length) return rows;
+  const dates = rows.map(r => r.date).sort();
+  const minD = dates[0], maxD = dates[dates.length - 1];
+  let existing = [];
+  try {
+    const { data } = await sb.from('transactions').select('merchant,amount,date').gte('date', minD).lte('date', maxD);
+    existing = data || [];
+  } catch (e) {}
+  const key = (mer, amt, dt) => (mer || '').trim().toLowerCase() + '|' + Math.abs(+amt).toFixed(2) + '|' + dt;
+  const seen = new Set(existing.map(t => key(t.merchant, t.amount, t.date)));
+  return rows.map(r => {
+    const dup = seen.has(key(r.merchant, r.amount, r.date));
+    return { ...r, dup, include: !dup };
+  });
+}
+
+function ImportCard({ reload, showToast, setTab, goToMonth }) {
+  const [busy, setBusy] = useState('');
+  const [preview, setPreview] = useState(null);
+  const fileRef = useRef(null);
+
+  async function onPick(e) {
+    const file = e.target.files && e.target.files[0];
+    if (e.target) e.target.value = '';
+    if (!file) return;
+    setBusy('read');
+    try {
+      const payload = await buildImportPayload(file);
+      setBusy('ai');
+      const d = await aiCall('import', payload);
+      const rows = normalizeRows(d.transactions || []);
+      if (!rows.length) { showToast('לא נמצאו עסקאות בקובץ — נסה קובץ פירוט חיובים', AI_ERR_RED); setBusy(''); return; }
+      const flagged = await flagDuplicates(rows);
+      setPreview({ rows: flagged, fileName: file.name });
+    } catch (err) {
+      showToast(aiErr(err), AI_ERR_RED);
+    }
+    setBusy('');
+  }
+
+  return (
+    <div className="imp-card">
+      <div className="imp-ico">📄✨</div>
+      <h3>ייבוא מקובץ עם AI</h3>
+      <p>העלה קובץ פירוט עסקאות מחברת האשראי או הבנק — וה‑AI יחלץ, יסווג ויוסיף את כל העסקאות לחודש הנכון אוטומטית.</p>
+      <input ref={fileRef} type="file" accept=".csv,.txt,.xls,.xlsx,.pdf,text/csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={onPick} style={{ display: 'none' }} />
+      <button className="imp-btn" disabled={!!busy} onClick={() => fileRef.current && fileRef.current.click()}>
+        {busy === 'read' ? 'קורא את הקובץ…' : busy === 'ai' ? '✨ ה‑AI מחלץ עסקאות…' : '⬆ בחר קובץ להעלאה'}
+      </button>
+      <div className="imp-formats">
+        <span className="imp-fmt">CSV</span><span className="imp-fmt">Excel</span><span className="imp-fmt">PDF</span>
+      </div>
+      {preview && <ImportPreviewModal data={preview} onClose={() => setPreview(null)} reload={reload} showToast={showToast} setTab={setTab} goToMonth={goToMonth} />}
+    </div>
+  );
+}
+
+function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMonth }) {
+  const [rows, setRows] = useState(data.rows);
+  const [busy, setBusy] = useState(false);
+  const included = rows.filter(r => r.include);
+  const dupCount = rows.filter(r => r.dup).length;
+  const total = included.reduce((s, r) => s + (r.isRefund ? 0 : r.amount), 0);
+
+  function toggle(i) { setRows(rs => rs.map((r, idx) => idx === i ? { ...r, include: !r.include } : r)); }
+  function setCat(i, c) { setRows(rs => rs.map((r, idx) => idx === i ? { ...r, category: c } : r)); }
+
+  async function addAll() {
+    if (!included.length) { showToast('לא נבחרו עסקאות להוספה', AI_ERR_RED); return; }
+    setBusy(true);
+    const { data: { session } } = await sb.auth.getSession();
+    const uid = session.user.id;
+    const payload = included.map(r => ({
+      user_id: uid,
+      merchant: r.merchant.slice(0, 200),
+      amount: r.isRefund ? Math.abs(r.amount) : -Math.abs(r.amount),
+      currency: r.currency || 'ILS',
+      date: r.date,
+      time: null,
+      method: 'כרטיס אשראי',
+      category: r.category || autocat(r.merchant),
+      orig_amount: r.origAmount,
+      orig_currency: r.origCurrency,
+      fx_source: r.origCurrency ? 'import' : null,
+      source: 'import',
+    }));
+    let inserted = 0, failed = null;
+    for (let i = 0; i < payload.length; i += 200) {
+      const slice = payload.slice(i, i + 200);
+      const { error } = await sb.from('transactions').insert(slice);
+      if (error) { failed = error; break; }
+      inserted += slice.length;
+    }
+    setBusy(false);
+    if (failed) { showToast('שגיאה בהוספה: ' + failed.message, AI_ERR_RED); return; }
+    onClose();
+    showToast('✓ נוספו ' + inserted + ' עסקאות');
+    const mc = {};
+    included.forEach(r => { const mk = r.date.slice(0, 7); mc[mk] = (mc[mk] || 0) + 1; });
+    const top = Object.entries(mc).sort((a, b) => b[1] - a[1])[0];
+    if (top && goToMonth) { const p = top[0].split('-'); goToMonth(+p[0], +p[1]); }
+    setTab('home');
+    reload();
+  }
+
+  return (
+    <div className="imp-bg" onClick={e => { if (e.target === e.currentTarget && !busy) onClose(); }}>
+      <div className="imp-box">
+        <div className="imp-hd">
+          <h3>✨ נמצאו {rows.length} עסקאות</h3>
+          <div className="imp-fname" dir="ltr">{data.fileName}</div>
+          <div className="imp-stats">
+            <div className="imp-stat"><b>{included.length}</b> ייתווספו</div>
+            <div className="imp-stat"><b>{fmt(total)}</b> סך חיובים</div>
+          </div>
+          {dupCount > 0 && <div className="imp-dupwarn">⚠ זוהו {dupCount} עסקאות שכבר קיימות — בוטלו אוטומטית כדי למנוע כפילויות. אפשר לסמן אותן ידנית אם תרצה.</div>}
+        </div>
+        <div className="imp-list">
+          {rows.map((r, i) => (
+            <div key={i} className={'imp-row' + (r.include ? '' : ' off')}>
+              <input className="imp-cb" type="checkbox" checked={r.include} onChange={() => toggle(i)} />
+              <div className="imp-m">
+                <div className="imp-mn">{r.merchant}{r.dup && <span className="imp-dupb">קיים</span>}</div>
+                <div className="imp-md">{r.date}{r.origCurrency ? ' · ' + fmtForeign(r.origAmount, r.origCurrency) : ''}</div>
+              </div>
+              <select className="imp-sel" value={r.category} onChange={e => setCat(i, e.target.value)}>
+                {CAT_ORDER.map(k => <option key={k} value={k}>{CATS[k].label}</option>)}
+              </select>
+              <div className={'imp-amt ' + (r.isRefund ? 'pos' : 'neg')}>{r.isRefund ? '+' : '−'}{fmt(r.amount)}</div>
+            </div>
+          ))}
+        </div>
+        <div className="imp-ft">
+          <button className="btn-save" disabled={busy} onClick={addAll}>{busy ? 'מוסיף…' : 'הוסף ' + included.length + ' עסקאות'}</button>
+          <button className="btn-ghost" disabled={busy} onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddTab({ reload, showToast, setTab, goToMonth }) {
   const [merchant, setMerchant] = useState('');
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('Apple Pay');
@@ -474,7 +691,8 @@ function AddTab({ reload, showToast, setTab }) {
   return (
     <div className="tab-section active">
       <div className="page-title">הוספת עסקה</div>
-      <p className="page-sub">רישום ידני לדשבורד</p>
+      <p className="page-sub">ייבוא אוטומטי מקובץ, או רישום ידני</p>
+      <ImportCard reload={reload} showToast={showToast} setTab={setTab} goToMonth={goToMonth} />
       <div className="grid2 add-grid" style={{ gridTemplateColumns: '1.4fr 1fr', alignItems: 'start' }}>
         <div className="card">
           <div className="fg"><label className="fl">שם בית העסק *</label>
@@ -803,7 +1021,7 @@ function AiTab({ txAll, reload, showToast }) {
 const NAV = [['home', 'בית', '🏠'], ['txns', 'עסקאות', '🧾'], ['analytics', 'אנליטיקה', '📊'], ['ai', 'עוזר AI', '✨'], ['add', 'הוספת עסקה', '➕'], ['settings', 'הגדרות', '⚙️']];
 const BNAV = [['home', 'בית', '🏠'], ['txns', 'עסקאות', '🧾'], ['analytics', 'ניתוח', '📊'], ['ai', 'AI', '✨'], ['add', 'הוסף', '➕'], ['settings', 'הגדרות', '⚙️']];
 
-function Dashboard({ user, txAll, monthLabel, changeMonth, goToday, reload, showToast }) {
+function Dashboard({ user, txAll, monthLabel, changeMonth, goToday, reload, showToast, goToMonth }) {
   const [tab, setTabState] = useState('home');
   const [editTx, setEditTx] = useState(null);
   const setTab = name => { setTabState(name); window.scrollTo(0, 0); };
@@ -835,7 +1053,7 @@ function Dashboard({ user, txAll, monthLabel, changeMonth, goToday, reload, show
         {tab === 'txns' && <TransactionsTab txAll={txAll} onEdit={setEditTx} />}
         {tab === 'analytics' && <AnalyticsTab />}
         {tab === 'ai' && <AiTab txAll={txAll} reload={reload} showToast={showToast} />}
-        {tab === 'add' && <AddTab reload={reload} showToast={showToast} setTab={setTab} />}
+        {tab === 'add' && <AddTab reload={reload} showToast={showToast} setTab={setTab} goToMonth={goToMonth} />}
         {tab === 'settings' && <SettingsTab user={user} reload={reload} showToast={showToast} />}
       </main>
 
@@ -911,6 +1129,7 @@ function App() {
     setCurM(m); setCurY(y);
   };
   const goToday = () => { const n = new Date(); setCurY(n.getFullYear()); setCurM(n.getMonth() + 1); };
+  const goToMonth = useCallback((y, m) => { if (y && m) { setCurY(y); setCurM(m); } }, []);
   const monthLabel = MHE[curM - 1] + ' ' + curY;
 
   let screen;
@@ -922,7 +1141,7 @@ function App() {
   else if (page === 'reset-new') screen = <ResetNewScreen go={setPage} onSignedIn={onSignedIn} />;
   else if (page === 'pending') screen = <PendingScreen go={setPage} />;
   else if (page === 'app' && user) screen = (
-    <Dashboard user={user} txAll={txAll} monthLabel={monthLabel} changeMonth={changeMonth} goToday={goToday} reload={loadMonth} showToast={showToast} />
+    <Dashboard user={user} txAll={txAll} monthLabel={monthLabel} changeMonth={changeMonth} goToday={goToday} reload={loadMonth} showToast={showToast} goToMonth={goToMonth} />
   );
   else screen = <div className="auth-shell"><div className="auth-icon">₪</div></div>;
 
