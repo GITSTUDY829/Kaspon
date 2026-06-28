@@ -561,6 +561,26 @@ async function flagDuplicates(rows) {
   });
 }
 
+// למידה: בניית מפת בית-עסק → קטגוריה מתוך ההיסטוריה של המשתמש (כל הערוצים נשמרים באותה טבלה).
+// הסיווג האחרון ביותר לכל בית עסק מנצח, כך שתיקון פעם אחת נזכר. RLS מצמצם למשתמש בלבד.
+async function loadLearnedMap() {
+  const map = {};
+  try {
+    const { data } = await sb.from('transactions')
+      .select('merchant,category,date,id')
+      .not('category', 'is', null)
+      .neq('category', 'other')
+      .order('date', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(4000);
+    (data || []).forEach(t => {
+      const k = (t.merchant || '').trim().toLowerCase();
+      if (k && t.category && CATS[t.category] && !(k in map)) map[k] = t.category;
+    });
+  } catch (e) {}
+  return map;
+}
+
 function ImportCard({ reload, showToast, setTab, goToMonth }) {
   const [busy, setBusy] = useState('');
   const [preview, setPreview] = useState(null);
@@ -575,8 +595,14 @@ function ImportCard({ reload, showToast, setTab, goToMonth }) {
       const payload = await buildImportPayload(file);
       setBusy('ai');
       const d = await aiCall('import', payload);
-      const rows = normalizeRows(d.transactions || []);
-      if (!rows.length) { showToast('לא נמצאו עסקאות בקובץ — נסה קובץ פירוט חיובים', AI_ERR_RED); setBusy(''); return; }
+      const raw = normalizeRows(d.transactions || []);
+      if (!raw.length) { showToast('לא נמצאו עסקאות בקובץ — נסה קובץ פירוט חיובים', AI_ERR_RED); setBusy(''); return; }
+      // למידה: לבתי עסק שכבר סיווגת בעבר — להחיל את הקטגוריה הזכורה אוטומטית
+      const learned = await loadLearnedMap();
+      const rows = raw.map(r => {
+        const k = r.merchant.trim().toLowerCase();
+        return learned[k] ? { ...r, category: learned[k], learned: true } : r;
+      });
       const flagged = await flagDuplicates(rows);
       setPreview({ rows: flagged, fileName: file.name });
     } catch (err) {
@@ -690,7 +716,7 @@ function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMont
             <div key={i} className={'imp-row' + (r.include ? '' : ' off')}>
               <input className="imp-cb" type="checkbox" checked={r.include} onChange={() => toggle(i)} />
               <div className="imp-m">
-                <div className="imp-mn">{r.merchant}{r.fix && <span className="imp-fixb">תיקון לזיכוי</span>}{r.dup && <span className="imp-dupb">קיים</span>}</div>
+                <div className="imp-mn">{r.merchant}{r.learned && !r.dup && <span className="imp-learnb">נלמד</span>}{r.fix && <span className="imp-fixb">תיקון לזיכוי</span>}{r.dup && <span className="imp-dupb">קיים</span>}</div>
                 <div className="imp-md">{r.date}{r.origCurrency ? ' · ' + fmtForeign(r.origAmount, r.origCurrency) : ''}{r.fix && <span className="imp-was"> · היה <span dir="ltr">−{fmt(r.fixFrom)}</span></span>}</div>
               </div>
               <select className="imp-sel" value={r.category} onChange={e => setCat(i, e.target.value)}>
@@ -718,7 +744,11 @@ function AddTab({ reload, showToast, setTab, goToMonth }) {
   const [notes, setNotes] = useState('');
   const [isRefund, setIsRefund] = useState(false);
   const [busy, setBusy] = useState(false);
-  const effCat = cat || autocat(merchant || '');
+  const [learnedMap, setLearnedMap] = useState({});
+  useEffect(() => { loadLearnedMap().then(setLearnedMap); }, []);
+  const mKey = (merchant || '').trim().toLowerCase();
+  const learnedCat = learnedMap[mKey];
+  const effCat = cat || learnedCat || autocat(merchant || '');
   const c = CATS[effCat] || CATS.other;
   const amtNum = parseFloat(amount);
   async function addTx() {
@@ -729,7 +759,7 @@ function AddTab({ reload, showToast, setTab, goToMonth }) {
     const { error } = await sb.from('transactions').insert({
       user_id: session.user.id, merchant: m.slice(0, 200), amount: isRefund ? Math.abs(amtNum) : -Math.abs(amtNum), currency: 'ILS',
       date: date || new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5),
-      method, category: cat || autocat(m), notes: notes.slice(0, 500) || null, source: 'manual'
+      method, category: cat || learnedMap[m.toLowerCase()] || autocat(m), notes: notes.slice(0, 500) || null, source: 'manual'
     });
     setBusy(false);
     if (error) { showToast('שגיאה: ' + error.message, '#A24B57'); return; }
@@ -764,6 +794,7 @@ function AddTab({ reload, showToast, setTab, goToMonth }) {
                 {CAT_ORDER.map(k => <option key={k} value={k}>{CATS[k].label}</option>)}
               </select></div>
           </div>
+          {!cat && learnedCat && <div className="learn-hint">✓ סווג ל"{CATS[learnedCat].label}" לפי קטגוריות קודמות של בית עסק זה</div>}
           <div className="fg"><label className="fl">הערות</label>
             <input className="fi" type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="אופציונלי…" /></div>
           <label className="refund-tg">
