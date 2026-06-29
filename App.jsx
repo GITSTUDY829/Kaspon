@@ -261,7 +261,8 @@ function TxItem({ tx, onEdit }) {
   const pos = tx.amount > 0;
   const initial = (tx.merchant || '?').trim().charAt(0);
   const foreign = tx.orig_currency && tx.orig_currency !== 'ILS' && tx.orig_amount != null;
-  const meta = tx.method === 'Apple Pay' ? (tx.time || '') : ((tx.time || '') + (tx.time ? ' · ' : '') + (tx.method || ''));
+  const mtd = (tx.method && tx.method !== 'Apple Pay') ? tx.method : '';
+  const meta = (tx.time || '') + ((tx.time && mtd) ? ' · ' : '') + mtd;
   return (
     <div className="txi" onClick={() => onEdit(tx)}>
       <div className="txicon" style={{ background: cat.color + '22', color: cat.color }}>{initial}</div>
@@ -270,7 +271,6 @@ function TxItem({ tx, onEdit }) {
         <div className="txmeta">
           <span className="txdate">{meta}</span>
           <span className="cbadge" style={{ background: cat.color + '22', color: cat.color }}>{cat.label}</span>
-          {tx.method === 'Apple Pay' && <span className="apbadge">Apple Pay</span>}
         </div>
       </div>
       <div className="txamt-wrap">
@@ -286,7 +286,7 @@ function Empty({ text }) {
 }
 
 function FilterChips({ catF, setCatF }) {
-  const chips = [['all', 'הכל'], ['__ap', 'Apple Pay'], ...CAT_ORDER.map(k => [k, CATS[k].label])];
+  const chips = [['all', 'הכל'], ...CAT_ORDER.map(k => [k, CATS[k].label])];
   return (
     <div className="filters">
       {chips.map(([k, label]) => (
@@ -300,11 +300,11 @@ function HomeTab({ txAll, monthLabel, changeMonth, goToday, onEdit, setTab }) {
   const stats = useMemo(() => {
     const exp = txAll.filter(t => t.amount < 0);
     const spent = exp.reduce((s, t) => s + Math.abs(t.amount), 0);
-    const apCnt = exp.filter(t => t.method === 'Apple Pay').length;
+    const maxExp = exp.reduce((m, t) => Math.max(m, Math.abs(t.amount)), 0);
     const avg = exp.length ? spent / exp.length : 0;
     const refundTx = txAll.filter(t => t.amount > 0);
     const refunds = refundTx.reduce((s, t) => s + t.amount, 0);
-    return { spent, apCnt, avg, cnt: txAll.length, refunds, refundCnt: refundTx.length };
+    return { spent, maxExp, avg, cnt: txAll.length, refunds, refundCnt: refundTx.length };
   }, [txAll]);
   const recent = txAll.slice(0, 7);
   const catBars = useMemo(() => {
@@ -341,7 +341,7 @@ function HomeTab({ txAll, monthLabel, changeMonth, goToday, onEdit, setTab }) {
         </div>
         <div className="hero-row">
           <div className="hero-stat"><div className="hero-stat-label">עסקאות</div><div className="hero-stat-val">{stats.cnt}</div></div>
-          <div className="hero-stat"><div className="hero-stat-label">Apple Pay</div><div className="hero-stat-val">{stats.apCnt}</div></div>
+          <div className="hero-stat"><div className="hero-stat-label">הוצאה גדולה</div><div className="hero-stat-val">{fmt(stats.maxExp)}</div></div>
           <div className="hero-stat"><div className="hero-stat-label">ממוצע לעסקה</div><div className="hero-stat-val">{fmt(stats.avg)}</div></div>
         </div>
       </div>
@@ -381,8 +381,7 @@ function TransactionsTab({ txAll, onEdit }) {
   const [q, setQ] = useState('');
   const items = useMemo(() => {
     let list = txAll;
-    if (catF === '__ap') list = list.filter(t => t.method === 'Apple Pay');
-    else if (catF !== 'all') list = list.filter(t => t.category === catF);
+    if (catF !== 'all') list = list.filter(t => t.category === catF);
     const query = q.toLowerCase();
     if (query) list = list.filter(t => (t.merchant || '').toLowerCase().includes(query));
     return list;
@@ -426,8 +425,10 @@ function AnalyticsTab() {
       all.filter(t => t.amount < 0).forEach(t => { const c = t.category || 'other'; byc[c] = (byc[c] || 0) + Math.abs(t.amount); });
       const ce = Object.entries(byc).sort(([, a], [, b]) => b - a).slice(0, 8);
       charts.c = new Chart(cRef.current, { type: 'doughnut', data: { labels: ce.map(([c]) => (CATS[c] || CATS.other).label), datasets: [{ data: ce.map(([, v]) => Math.round(v)), backgroundColor: ce.map(([c]) => (CATS[c] || CATS.other).color), borderWidth: 3, borderColor: '#FBF9F3' }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: true, position: 'right', labels: { color: '#52503F', font: { family: 'Heebo', size: 12 }, boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle', padding: 12 } }, tooltip: { callbacks: { label: c => c.label + ': ₪' + c.raw.toLocaleString('he-IL') } } } } });
-      const apC = all.filter(t => t.amount < 0 && t.method === 'Apple Pay').length, othC = all.filter(t => t.amount < 0).length - apC;
-      charts.me = new Chart(meRef.current, { type: 'bar', data: { labels: ['Apple Pay', 'אמצעים אחרים'], datasets: [{ data: [apC, othC], backgroundColor: ['#2F4A39', '#C9C2B2'], borderRadius: 8, barThickness: 46 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw + ' עסקאות' } } }, scales: { x: { ticks: { color: TICK, font: { family: 'Heebo' } }, grid: { color: GRID } }, y: { ticks: { color: '#52503F', font: { family: 'Heebo' } }, grid: { display: false } } } } });
+      const byMethod = {};
+      all.filter(t => t.amount < 0).forEach(t => { let m = (t.method || 'אחר'); if (m === 'Apple Pay') m = 'כרטיס אשראי'; byMethod[m] = (byMethod[m] || 0) + 1; });
+      const meEnt = Object.entries(byMethod).sort((a, b) => b[1] - a[1]);
+      charts.me = new Chart(meRef.current, { type: 'bar', data: { labels: meEnt.map(e => e[0]), datasets: [{ data: meEnt.map(e => e[1]), backgroundColor: '#2F4A39', borderRadius: 8 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw + ' עסקאות' } } }, scales: { x: { ticks: { color: TICK, font: { family: 'Heebo' }, precision: 0 }, grid: { color: GRID } }, y: { ticks: { color: '#52503F', font: { family: 'Heebo' } }, grid: { display: false } } } } });
     })();
     return () => { cancelled = true; Object.values(charts).forEach(ch => { try { ch.destroy(); } catch (e) {} }); };
   }, []);
@@ -581,30 +582,61 @@ async function loadLearnedMap() {
   return map;
 }
 
+// דדופ בין קבצים שונים שמועלים יחד: אותה עסקה שמופיעה בשני קבצים → נכנסת פעם אחת.
+// כפילות אמיתית בתוך אותו קובץ (למשל שתי קניות זהות) נשמרת.
+function dedupeBatch(rows) {
+  const key = r => r.merchant.trim().toLowerCase() + '|' + r.amount.toFixed(2) + '|' + r.date + '|' + (r.isRefund ? '1' : '0');
+  const firstFile = {};
+  const out = [];
+  for (const r of rows) {
+    const k = key(r);
+    if (k in firstFile && firstFile[k] !== r._file) continue; // אותה עסקה מקובץ אחר → דילוג
+    if (!(k in firstFile)) firstFile[k] = r._file;
+    out.push(r);
+  }
+  out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  return out;
+}
+
 function ImportCard({ reload, showToast, setTab, goToMonth }) {
   const [busy, setBusy] = useState('');
   const [preview, setPreview] = useState(null);
   const fileRef = useRef(null);
 
   async function onPick(e) {
-    const file = e.target.files && e.target.files[0];
+    const files = Array.from((e.target && e.target.files) || []);
     if (e.target) e.target.value = '';
-    if (!file) return;
-    setBusy('read');
+    if (!files.length) return;
+    setBusy('קורא קבצים…');
     try {
-      const payload = await buildImportPayload(file);
-      setBusy('ai');
-      const d = await aiCall('import', payload);
-      const raw = normalizeRows(d.transactions || []);
-      if (!raw.length) { showToast('לא נמצאו עסקאות בקובץ — נסה קובץ פירוט חיובים', AI_ERR_RED); setBusy(''); return; }
-      // למידה: לבתי עסק שכבר סיווגת בעבר — להחיל את הקטגוריה הזכורה אוטומטית
       const learned = await loadLearnedMap();
-      const rows = raw.map(r => {
-        const k = r.merchant.trim().toLowerCase();
-        return learned[k] ? { ...r, category: learned[k], learned: true } : r;
-      });
-      const flagged = await flagDuplicates(rows);
-      setPreview({ rows: flagged, fileName: file.name });
+      let all = [];
+      const failed = [];
+      // עיבוד רציף — קובץ אחרי קובץ — כדי לא להעמיס ולא לטעות
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setBusy(files.length > 1 ? 'מעבד קובץ ' + (i + 1) + ' מתוך ' + files.length + '…' : '✨ ה‑AI מחלץ עסקאות…');
+        try {
+          const payload = await buildImportPayload(file);
+          const d = await aiCall('import', payload);
+          const raw = normalizeRows(d.transactions || []);
+          raw.forEach(r => {
+            r._file = i;
+            const k = r.merchant.trim().toLowerCase();
+            if (learned[k]) { r.category = learned[k]; r.learned = true; }
+          });
+          all = all.concat(raw);
+        } catch (err) {
+          failed.push(file.name);
+        }
+      }
+      if (!all.length) {
+        showToast(failed.length ? 'לא הצלחתי לקרוא את הקבצים — נסה קבצי פירוט חיובים' : 'לא נמצאו עסקאות בקבצים', AI_ERR_RED);
+        setBusy(''); return;
+      }
+      setBusy('בודק כפילויות…');
+      const flagged = await flagDuplicates(dedupeBatch(all));
+      setPreview({ rows: flagged, fileCount: files.length, names: files.map(f => f.name), failed });
     } catch (err) {
       showToast(aiErr(err), AI_ERR_RED);
     }
@@ -615,13 +647,14 @@ function ImportCard({ reload, showToast, setTab, goToMonth }) {
     <div className="imp-card">
       <div className="imp-ico">📄✨</div>
       <h3>ייבוא מקובץ עם AI</h3>
-      <p>העלה קובץ פירוט עסקאות מחברת האשראי או הבנק — וה‑AI יחלץ, יסווג ויוסיף את כל העסקאות לחודש הנכון אוטומטית.</p>
-      <input ref={fileRef} type="file" accept=".csv,.txt,.xls,.xlsx,.pdf,text/csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={onPick} style={{ display: 'none' }} />
+      <p>העלה קובץ — או כמה קבצים יחד, גם לחודשים שונים — של פירוט עסקאות, וה‑AI יחלץ, יסווג ויוסיף הכל לחודש הנכון אוטומטית.</p>
+      <input ref={fileRef} type="file" multiple accept=".csv,.txt,.xls,.xlsx,.pdf,text/csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={onPick} style={{ display: 'none' }} />
       <button className="imp-btn" disabled={!!busy} onClick={() => fileRef.current && fileRef.current.click()}>
-        {busy === 'read' ? 'קורא את הקובץ…' : busy === 'ai' ? '✨ ה‑AI מחלץ עסקאות…' : '⬆ בחר קובץ להעלאה'}
+        {busy || '⬆ בחר קבצים להעלאה'}
       </button>
       <div className="imp-formats">
         <span className="imp-fmt">CSV</span><span className="imp-fmt">Excel</span><span className="imp-fmt">PDF</span>
+        <span className="imp-fmt">כמה קבצים יחד</span>
       </div>
       {preview && <ImportPreviewModal data={preview} onClose={() => setPreview(null)} reload={reload} showToast={showToast} setTab={setTab} goToMonth={goToMonth} />}
     </div>
@@ -636,6 +669,8 @@ function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMont
   const fixN = sel.filter(r => r.fix).length;
   const dupCount = rows.filter(r => r.dup).length;
   const total = sel.filter(r => !r.fix && !r.isRefund).reduce((s, r) => s + r.amount, 0);
+  const monthsCovered = new Set(rows.map(r => r.date.slice(0, 7))).size;
+  const multi = (data.fileCount || 1) > 1;
 
   function toggle(i) { setRows(rs => rs.map((r, idx) => idx === i ? { ...r, include: !r.include } : r)); }
   function setCat(i, c) { setRows(rs => rs.map((r, idx) => idx === i ? { ...r, category: c } : r)); }
@@ -702,12 +737,13 @@ function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMont
       <div className="imp-box">
         <div className="imp-hd">
           <h3>✨ נמצאו {rows.length} עסקאות</h3>
-          <div className="imp-fname" dir="ltr">{data.fileName}</div>
+          <div className="imp-fname">{multi ? (data.fileCount + ' קבצים · ' + monthsCovered + (monthsCovered === 1 ? ' חודש' : ' חודשים')) : <span dir="ltr">{(data.names && data.names[0]) || ''}</span>}</div>
           <div className="imp-stats">
             <div className="imp-stat"><b>{addN}</b> ייתווספו</div>
             {fixN > 0 && <div className="imp-stat"><b>{fixN}</b> יתוקנו</div>}
             <div className="imp-stat"><b>{fmt(total)}</b> סך חיובים</div>
           </div>
+          {data.failed && data.failed.length > 0 && <div className="imp-dupwarn">⚠ {data.failed.length} קבצים לא נקראו ({data.failed.join(', ')}). שאר הקבצים עובדו כרגיל.</div>}
           {fixN > 0 && <div className="imp-fixnote">🔧 {fixN} עסקאות קיימות שזוהו כזיכוי יעודכנו במקום — בלי כפילויות וללא צורך בתיקון ידני.</div>}
           {dupCount > 0 && <div className="imp-dupwarn">⚠ זוהו {dupCount} עסקאות שכבר קיימות — בוטלו אוטומטית כדי למנוע כפילויות. אפשר לסמן אותן ידנית אם תרצה.</div>}
         </div>
@@ -738,7 +774,7 @@ function ImportPreviewModal({ data, onClose, reload, showToast, setTab, goToMont
 function AddTab({ reload, showToast, setTab, goToMonth }) {
   const [merchant, setMerchant] = useState('');
   const [amount, setAmount] = useState('');
-  const [method, setMethod] = useState('Apple Pay');
+  const [method, setMethod] = useState('כרטיס אשראי');
   const [cat, setCat] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
@@ -782,7 +818,7 @@ function AddTab({ reload, showToast, setTab, goToMonth }) {
               <input className="fi" type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" style={{ direction: 'ltr', textAlign: 'left' }} /></div>
             <div className="fg"><label className="fl">אמצעי תשלום</label>
               <select className="fs" value={method} onChange={e => setMethod(e.target.value)}>
-                <option>Apple Pay</option><option>כרטיס אשראי</option><option>מזומן</option><option>העברה בנקאית</option><option>הוראת קבע</option>
+                <option>כרטיס אשראי</option><option>מזומן</option><option>העברה בנקאית</option><option>הוראת קבע</option>
               </select></div>
           </div>
           <div className="frow">
@@ -1183,7 +1219,6 @@ function App() {
     try { const { data: prof } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle(); approved = !!(prof && prof.approved); } catch (e) { approved = false; }
     if (!approved) { setPage('pending'); return; }
     setUser({ id: session.user.id, email: session.user.email || '' });
-    const n = new Date(); setCurY(n.getFullYear()); setCurM(n.getMonth() + 1);
     setPage('app');
   }, []);
 
